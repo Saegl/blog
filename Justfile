@@ -9,3 +9,6 @@ fmt:
 
 lint:
     uv run ruff check .
+
+deploy:
+    ssh root@saegl.me deploy-blog
