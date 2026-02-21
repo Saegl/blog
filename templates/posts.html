@@ -4,7 +4,10 @@
 <h1>Posts</h1>
 <ul>
 {% for post in posts %}
-    <li><a href="/posts/{{ post.slug }}">{{ post.title }}</a></li>
+    <li>
+        <a href="/posts/{{ post.slug }}">{{ post.title }}</a>
+        {% if post.created %}<small>{{ post.created }}</small>{% endif %}
+    </li>
 {% else %}
     <li>No posts yet.</li>
 {% endfor %}

@@ -1,5 +1,9 @@
 {% extends "base.html" %}
-{% block title %}{{ title }}{% endblock %}
+{% block title %}{{ post.title }}{% endblock %}
 {% block content %}
-{{ content | safe }}
+<p>
+    {% if post.created %}created: {{ post.created }}{% endif %}
+    {% if post.updated %} | updated: {{ post.updated }}{% endif %}
+</p>
+{{ post.html | safe }}
 {% endblock %}
