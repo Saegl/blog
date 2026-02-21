@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}blog{% endblock %}</title>
+    <style>
+        body { font-family: monospace; max-width: 700px; margin: 0 auto; padding: 1rem; }
+        nav { margin-bottom: 2rem; }
+        nav a { margin-right: 1rem; }
+        a { color: #333; }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="/">root</a>
+        <a href="/posts">posts</a>
+        <a href="/about">about</a>
+    </nav>
+    {% block content %}{% endblock %}
+</body>
+</html>
