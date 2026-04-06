@@ -1,5 +1,5 @@
 dev:
-    (sleep 2 && xdg-open http://127.0.0.1:8000) &
+    (until curl -s -o /dev/null http://127.0.0.1:8000; do sleep 0.2; done && xdg-open http://127.0.0.1:8000) &
     uv run fastapi dev
 
 run:
