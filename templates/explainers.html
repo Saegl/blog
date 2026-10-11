@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>explainers</title>
+    <style>
+        body { font-family: monospace, monospace; max-width: 700px; margin: 0 auto; padding: 1rem; }
+        li { margin-bottom: 0.5rem; }
+        a { color: #333; }
+    </style>
+</head>
+<body>
+    <h1>explainers</h1>
+    <ul>
+    {% for e in explainers %}
+        <li>{{ e.date }} <a href="/explainers/{{ e.slug }}">{{ e.title }}</a></li>
+    {% endfor %}
+    </ul>
+</body>
+</html>

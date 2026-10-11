@@ -1,0 +1,2055 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Knuth–Morris–Pratt algorithm</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.18.10/dist/katex.min.css">
+<style>
+:root {
+  --bg: #17202a; --panel: #1f2a36; --ink: #e8e4d8; --muted: #94a3b0; --rule: #2f3d4c;
+  --sky: #5cc8e6; --yellow: #f4d35e; --coral: #ee8572; --green: #8fd694; --lav: #c3a6ff;
+  --cell: 2.15rem;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: 'Literata', Georgia, serif; font-size: 17.5px; line-height: 1.68;
+}
+main { max-width: 40rem; margin: 0 auto; padding: 0 1rem 6rem; }
+header.title { text-align: center; padding: 4.5rem 1rem 2rem; }
+header.title h1 { font-size: 2.6rem; line-height: 1.15; margin: 0 0 .6rem; font-weight: 600; }
+header.title p { color: var(--muted); margin: 0 auto; max-width: 34rem; font-style: italic; }
+h2 { font-size: 1.7rem; margin: 4.2rem 0 1rem; padding-top: 1rem; border-top: 1px solid var(--rule); font-weight: 600; line-height: 1.25; }
+h2 .num { color: var(--muted); font-family: 'JetBrains Mono', monospace; font-size: 1rem; margin-right: .6rem; }
+h3 { font-size: 1.22rem; margin: 2.4rem 0 .6rem; font-weight: 600; }
+p { margin: 0 0 1.05rem; }
+a { color: var(--sky); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+code, pre, .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+:not(pre) > code { font-size: 0.92em; background: var(--panel); padding: .08em .32em; border-radius: 4px; white-space: nowrap; }
+pre { font-size: 16px; line-height: 1.5; background: var(--panel) !important; border: 1px solid var(--rule); border-radius: 8px;
+  padding: .9rem 1.1rem; overflow-x: auto; margin: 1.2rem 0; }
+pre code { font-size: 16px; }
+pre.output { color: var(--muted); border-left: 3px solid var(--rule); }
+pre.output::before { content: 'output'; display: block; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: #6f7f8e; margin-bottom: .35rem; }
+.wide { width: min(58rem, calc(100vw - 2rem)); margin-left: 50%; transform: translateX(-50%); }
+main > pre { width: min(54rem, calc(100vw - 2rem)); margin-left: 50%; transform: translateX(-50%); }
+code, pre { font-variant-ligatures: none; font-feature-settings: 'liga' 0, 'calt' 0; }
+details :not(pre) > code, figure.demo :not(pre) > code { background: #283746; }
+
+.t { color: var(--sky); } .p { color: var(--yellow); } .b { color: var(--lav); } .g { color: var(--green); } .r { color: var(--coral); }
+strong { font-weight: 600; }
+
+nav.toc { border: 1px solid var(--rule); border-radius: 8px; padding: 1rem 1.4rem; background: var(--panel); margin: 1rem 0 2rem; }
+nav.toc h2 { all: unset; display: block; font-weight: 600; margin-bottom: .4rem; }
+nav.toc ol { margin: 0; padding-left: 1.5rem; columns: 2; column-gap: 2rem; font-size: .95rem; }
+nav.toc li { break-inside: avoid; margin: .12rem 0; }
+nav.toc a { text-decoration: none; }
+nav.toc a:hover { text-decoration: underline; }
+@media (max-width: 600px) { nav.toc ol { columns: 1; } }
+
+.callout { border-left: 3px solid var(--sky); padding: .15rem 0 .15rem 1.1rem; margin: 1.5rem 0; }
+.callout .label { font-family: 'JetBrains Mono', monospace; font-size: .78rem; letter-spacing: .09em; text-transform: uppercase; color: var(--sky); display: block; margin-bottom: .2rem; }
+.callout.key { border-color: var(--yellow); } .callout.key .label { color: var(--yellow); }
+.callout.warn { border-color: var(--coral); } .callout.warn .label { color: var(--coral); }
+.callout.detour { border-color: var(--lav); } .callout.detour .label { color: var(--lav); }
+.callout p:last-child { margin-bottom: 0; }
+
+.problem { border-left: 3px solid var(--green); padding: .1rem 0 .1rem 1.1rem; margin: 1.6rem 0; }
+.problem .head { font-family: 'JetBrains Mono', monospace; font-size: .82rem; letter-spacing: .06em; text-transform: uppercase; color: var(--green); margin-bottom: .25rem; }
+.problem .diff { margin-left: .6rem; color: var(--muted); }
+.problem .diff.hard { color: var(--coral); } .problem .diff.medium { color: var(--yellow); }
+details { margin: .6rem 0; }
+details > summary { cursor: pointer; color: var(--sky); font-family: 'JetBrains Mono', monospace; font-size: .88rem; }
+details.solution, details.proof, details.hint { background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: .5rem .9rem; }
+details[open] > summary { margin-bottom: .6rem; }
+details.proof > summary { color: var(--lav); }
+details p:last-child, details pre:last-child { margin-bottom: .3rem; }
+
+figure { margin: 1.8rem 0; }
+figure.demo, figure.fig { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 1.1rem 1.2rem 1rem; }
+figcaption { color: var(--muted); font-size: .93rem; line-height: 1.5; margin-top: .8rem; }
+figcaption b { color: var(--ink); font-weight: 600; }
+
+/* cell rows */
+.rows-scroll { overflow-x: auto; padding-bottom: .3rem; }
+.rows { display: grid; gap: 4px 3px; align-items: center; width: max-content; font-family: 'JetBrains Mono', monospace; font-size: 16px; }
+.rows .lab { color: var(--muted); font-size: 13px; padding-right: .8rem; white-space: nowrap; text-align: right; }
+.rows .c { width: var(--cell); height: var(--cell); display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--rule); border-radius: 5px; background: #1a242f; }
+.rows .c.txt { color: var(--sky); } .rows .c.pat { color: var(--yellow); }
+.rows .c.idx { border: none; background: none; height: 1.2rem; color: #6f7f8e; font-size: 12px; }
+.rows .c.num { border-style: dashed; color: var(--lav); font-size: 15px; }
+.rows .c.num.used { background: rgba(195,166,255,.25); border: 2px solid var(--lav); }
+.rows .c.ok { background: rgba(143,214,148,.20); border-color: var(--green); }
+.rows .c.bad { background: rgba(238,133,114,.28); border-color: var(--coral); }
+.rows .c.free { background: rgba(195,166,255,.22); border-color: var(--lav); }
+.rows .c.cmp { border-width: 2px; }
+.rows .c.dim { opacity: .32; }
+.rows .c.found { box-shadow: inset 0 -4px 0 var(--green); }
+.rows .c.ptr { border: none; background: none; height: 1.5rem; font-size: 13px; color: var(--ink); white-space: nowrap; overflow: visible; }
+.rows .c.space { color: #53636f; }
+
+.controls { display: flex; flex-wrap: wrap; gap: .5rem .6rem; align-items: center; margin: .9rem 0 .2rem; }
+.controls button, .chip {
+  font-family: 'JetBrains Mono', monospace; font-size: 14px; color: var(--ink); background: #263442; border: 1px solid var(--rule);
+  border-radius: 6px; padding: .32rem .7rem; cursor: pointer; }
+.controls button:hover, .chip:hover { border-color: var(--sky); }
+.controls button:disabled { opacity: .4; cursor: default; }
+.controls input[type=range] { flex: 1 1 10rem; accent-color: var(--sky); min-width: 8rem; }
+.inputs { display: flex; flex-wrap: wrap; gap: .5rem 1.2rem; margin-bottom: .9rem; font-family: 'JetBrains Mono', monospace; font-size: 14px; color: var(--muted); }
+.inputs label { display: flex; align-items: center; gap: .5rem; }
+.inputs input[type=text] { font-family: inherit; font-size: 16px; background: #17202a; color: var(--ink); border: 1px solid var(--rule); border-radius: 6px; padding: .28rem .5rem; width: 15rem; max-width: 60vw; }
+.inputs input.short { width: 9rem; }
+.readout { font-family: 'JetBrains Mono', monospace; font-size: 16px; white-space: pre; color: var(--muted); }
+.readouts { display: flex; flex-wrap: wrap; gap: .2rem 1.6rem; margin-top: .7rem; }
+.readout b { color: var(--ink); font-weight: 600; }
+.msg { min-height: 4.6em; margin-top: .7rem; font-size: .97rem; line-height: 1.5; }
+.msg code { white-space: nowrap; }
+.chips { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .7rem; align-items: center; font-family: 'JetBrains Mono', monospace; font-size: 14px; color: var(--muted); }
+.chip { padding: .15rem .55rem; }
+.chip.yes { border-color: var(--lav); color: var(--lav); background: rgba(195,166,255,.12); }
+.chip.cur { outline: 2px solid var(--yellow); outline-offset: 1px; }
+svg text { font-family: 'JetBrains Mono', monospace; }
+svg { display: block; max-width: 100%; height: auto; }
+.svg-scroll { overflow-x: auto; }
+
+table.trace { border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: 15px; margin: 1rem 0; width: 100%; }
+table.trace th, table.trace td { border-bottom: 1px solid var(--rule); padding: .3rem .55rem; text-align: left; vertical-align: top; }
+table.trace th { color: var(--muted); font-weight: 400; font-size: 13px; }
+table.plain { border-collapse: collapse; margin: 1rem 0; width: 100%; font-size: .95rem; }
+table.plain th, table.plain td { border-bottom: 1px solid var(--rule); padding: .4rem .6rem; text-align: left; vertical-align: top; }
+table.plain th { color: var(--muted); font-weight: 400; }
+ul, ol { padding-left: 1.4rem; } li { margin: .3rem 0; }
+.katex { font-size: 1.05em; }
+hr { border: none; border-top: 1px solid var(--rule); margin: 3rem 0; }
+</style>
+</head>
+<body>
+<header class="title">
+  <h1>The Knuth–Morris–Pratt algorithm</h1>
+  <p>How to search a text without ever looking at the same character twice, and why the pattern already knows everything you need.</p>
+</header>
+<main>
+
+<nav class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#motivation">A search that cannot go back</a></li>
+    <li><a href="#problem">The problem</a></li>
+    <li><a href="#naive">The obvious solution</a></li>
+    <li><a href="#diagnosis">What the obvious solution forgets</a></li>
+    <li><a href="#borders">Detour: prefixes, suffixes, borders</a></li>
+    <li><a href="#insight">Which shifts can survive?</a></li>
+    <li><a href="#table">The border table</a></li>
+    <li><a href="#search">The search loop</a></li>
+    <li><a href="#build">Building the table fast</a></li>
+    <li><a href="#correct">Why it never misses a match</a></li>
+    <li><a href="#complexity">Why it is linear</a></li>
+    <li><a href="#pitfalls">Pitfalls</a></li>
+    <li><a href="#applications">What else the table is good for</a></li>
+    <li><a href="#summary">Summary</a></li>
+    <li><a href="#quiz">Quiz</a></li>
+    <li><a href="#homework">Homework</a></li>
+    <li><a href="#extensions">Extensions: KMP as a machine</a></li>
+    <li><a href="#alternatives">Alternatives</a></li>
+    <li><a href="#history">History</a></li>
+    <li><a href="#reading">Further reading</a></li>
+  </ol>
+</nav>
+
+<p>This page builds the Knuth–Morris–Pratt algorithm (KMP) from the ground up. We start with the search everyone writes first, watch closely where it wastes work, and repair it one observation at a time. Four ideas you said were shaky are built on the way, each at the moment it is needed and each marked as a detour: <em>borders</em> of a string, <em>loop invariants</em>, <em>amortized analysis</em>, and (in the extensions) <em>finite automata</em>.</p>
+
+<p>Three objects appear on every screen, and each keeps one colour throughout: the <span class="t">text</span> we search in, the <span class="p">pattern</span> we search for, and <span class="b">borders</span>, the piece of knowledge KMP reuses. <span class="g">Green</span> marks characters that matched and <span class="r">coral</span> marks a mismatch.</p>
+
+<h2 id="motivation"><span class="num">01</span>A search that cannot go back</h2>
+
+<p>You are watching a server log as it is written:</p>
+
+<pre><code class="language-shellscript">tail -f app.log | grep "connection reset"</code></pre>
+
+<p>The log is a stream. Bytes arrive, the matcher looks at them, and they are gone. Now suppose the matcher has just read <code>connection res</code> and the next byte is not <code>e</code>. The search you would write on a whiteboard says: go back to the character after the <code>c</code> where this attempt started and try again from there. But those characters have already flowed past. To go back you would have to keep a buffer as long as the pattern and re-read it, again and again.</p>
+
+<p>The question this page answers is whether going back is ever necessary. It is not. There is a way to search that reads each character of the text exactly once, in order, never revisits one, and in total does at most twice as many character comparisons as the text has characters, no matter how nasty the input. Morris hit exactly this problem while writing a text editor in 1970, and the algorithm he and Pratt wrote down, later published together with Knuth, is the subject here.</p>
+
+<p>The same guarantee matters wherever the input is adversarial or huge: a DNA read searched in a genome, a signature scanned for in network traffic, a judge on LeetCode feeding you <code>"aaaa…ab"</code>.</p>
+
+<h2 id="problem"><span class="num">02</span>The problem</h2>
+
+<p>We are given two strings. The <span class="t">text</span> is the long one, with \(n\) characters; in code \(n\) is <code>len(text)</code>. The <span class="p">pattern</span> is the short one, with \(m\) characters; in code \(m\) is <code>len(pattern)</code>. We want every index of the text at which a copy of the pattern starts.</p>
+
+<p>The running example for the whole page is a typing accident. Someone meant to write <code>cocoa</code> and their finger bounced:</p>
+
+<figure class="fig wide">
+  <div data-fig="align" data-text="cocococoa" data-pattern="cocoa" data-shift="4" data-upto="5"></div>
+  <figcaption>The pattern <code>"cocoa"</code> occurs in the text <code>"cocococoa"</code> exactly once, starting at index 4. The answer is the list <code>[4]</code>.</figcaption>
+</figure>
+
+<p>Occurrences are allowed to overlap. In the text <code>"aaaaaa"</code> the pattern <code>"aaa"</code> starts at 0, 1, 2 and 3, and all four count.</p>
+
+<h2 id="naive"><span class="num">03</span>The obvious solution</h2>
+
+<p>Try every starting position. At each one, compare the pattern with the text character by character, and stop at the first difference.</p>
+
+<pre><code class="language-python">def naive_search(text: str, pattern: str) -&gt; tuple[list[int], int]:
+    """Return (start index of every occurrence, number of character comparisons)."""
+    match_starts: list[int] = []
+    comparison_count = 0
+    last_start = len(text) - len(pattern)
+    for start in range(last_start + 1):
+        matched_count = 0
+        while matched_count &lt; len(pattern):
+            comparison_count += 1
+            if text[start + matched_count] != pattern[matched_count]:
+                break
+            matched_count += 1
+        if matched_count == len(pattern):
+            match_starts.append(start)
+    return match_starts, comparison_count
+
+
+if __name__ == "__main__":
+    for text, pattern in [
+        ("cocococoa", "cocoa"),
+        ("the cat sat on the mat", "at"),
+        ("aaaaaaaaaaab", "aaab"),
+        ("a" * 9_999 + "b", "a" * 499 + "b"),
+    ]:
+        match_starts, comparison_count = naive_search(text, pattern)
+        shown_text = text if len(text) &lt;= 30 else f"&lt;{len(text)} chars&gt;"
+        shown_pattern = pattern if len(pattern) &lt;= 30 else f"&lt;{len(pattern)} chars&gt;"
+        print(f"{shown_pattern!r} in {shown_text!r}: starts={match_starts}, comparisons={comparison_count}")</code></pre>
+<pre class="output widecode">'cocoa' in 'cocococoa': starts=[4], comparisons=17
+'at' in 'the cat sat on the mat': starts=[5, 9, 20], comparisons=24
+'aaab' in 'aaaaaaaaaaab': starts=[8], comparisons=36
+'&lt;500 chars&gt;' in '&lt;10000 chars&gt;': starts=[9500], comparisons=4750500</pre>
+
+<p>The function also counts character comparisons, because that count is what we are going to attack. Step through it on the running example and watch the counter.</p>
+
+<figure class="demo wide" data-demo="naive" data-start="4">
+  <figcaption><b>Try:</b> press Step from where the demo opens (the first mismatch) and watch what happens at start 1, 2 and 3. <b>Notice:</b> after the mismatch at index 4 the next comparison is at text index 1. The search walks <em>backwards</em> in the text and re-reads characters it has already seen.</figcaption>
+</figure>
+
+<p>On friendly input this is fine: most starts fail on the first comparison, so the total is close to \(n\). The last line of the output shows the unfriendly case. With a text of 10,000 characters and a pattern of 500, the count is 4,750,500.</p>
+
+<div class="problem">
+  <div class="head">Problem 3.1 <span class="diff">easy</span></div>
+  <p>Without running anything: how many comparisons does <code>naive_search</code> make for the text <code>"aaaaaaaaaaab"</code> (eleven <code>a</code>s and a <code>b</code>) and the pattern <code>"aaab"</code>?</p>
+  <details class="solution"><summary>Solution</summary>
+    <p>The text has 12 characters and the pattern 4, so the starts are 0 through 8: nine of them.</p>
+    <p>At starts 0 through 7 the window is <code>"aaaa"</code>. The first three comparisons succeed and the fourth (<code>a</code> against <code>b</code>) fails: 4 comparisons each. At start 8 the window is <code>"aaab"</code> and all 4 comparisons succeed.</p>
+    <p>Total: \(9 \times 4 = 36\), which is what the program printed. A common slip is to count 12 starts instead of 9; the pattern has to fit, so the last start is \(n - m\).</p>
+  </details>
+</div>
+
+<div class="problem">
+  <div class="head">Problem 3.2 <span class="diff medium">medium</span></div>
+  <p>Generalise: the text is \(n-1\) copies of <code>a</code> followed by <code>b</code>, and the pattern is \(m-1\) copies of <code>a</code> followed by <code>b</code>. Give the exact comparison count as a formula, and check it against the 4,750,500 above.</p>
+  <details class="solution"><summary>Solution</summary>
+    <p>There are \(n - m + 1\) starts. At every start the first \(m-1\) comparisons succeed (<code>a</code> against <code>a</code>) and then the \(m\)-th is made: it fails everywhere except at the last start. Either way, each start costs exactly \(m\) comparisons.</p>
+    \[ \text{comparisons} = (n - m + 1)\cdot m \]
+    <p>With \(n = 10000\) and \(m = 500\): \(9501 \times 500 = 4{,}750{,}500\). When \(m\) is about \(n/2\) this is about \(n^2/4\): quadratic.</p>
+  </details>
+</div>
+
+<h2 id="diagnosis"><span class="num">04</span>What the obvious solution forgets</h2>
+
+<p>Freeze the naive search at its first mismatch on the running example.</p>
+
+<figure class="fig wide">
+  <div data-fig="align" data-text="cocococoa" data-pattern="cocoa" data-shift="0" data-upto="4"></div>
+  <figcaption>Start 0. Four comparisons succeeded, then <code>text[4] = "c"</code> met <code>pattern[4] = "a"</code>.</figcaption>
+</figure>
+
+<p>The naive search now moves to start 1 and asks: is <code>text[1]</code> equal to <code>pattern[0]</code>? It looks at the text to find out. But it does not need to look. Four comparisons just succeeded, and a successful comparison is a fact about the text:</p>
+
+<div class="callout key">
+  <span class="label">The observation everything rests on</span>
+  <p>If the first \(k\) characters of the pattern have just matched at some start, then those \(k\) characters of the text <em>are</em> <code>pattern[:k]</code>. We know them without looking. Any question about that stretch of text is really a question about the pattern alone.</p>
+</div>
+
+<p>Here \(k = 4\), so <code>text[0:4]</code> is <code>"coco"</code>, because <code>pattern[:4]</code> is <code>"coco"</code>. So:</p>
+
+<ul>
+  <li>Start 1 would compare <code>text[1]</code> with <code>pattern[0]</code>. We know <code>text[1]</code> is <code>pattern[1] = "o"</code>, and <code>pattern[0] = "c"</code>. Start 1 is dead, and we know that from the pattern alone.</li>
+  <li>Start 2 would compare <code>text[2], text[3]</code> with <code>pattern[0], pattern[1]</code>. We know <code>text[2:4]</code> is <code>pattern[2:4] = "co"</code>, and <code>pattern[:2] = "co"</code>. Those two comparisons are guaranteed to succeed. Start 2 is alive, and its first two comparisons are already done.</li>
+</ul>
+
+<p>The naive search wastes work in two distinct ways, and both come from forgetting what it just learned:</p>
+
+<ol>
+  <li>It <strong>tries starts that are provably dead</strong> (start 1, start 3).</li>
+  <li>At starts that are alive, it <strong>re-compares characters whose outcome is already known</strong> (the <code>"co"</code> at start 2).</li>
+</ol>
+
+<p>Both wastes are decided by the pattern. And the pattern is available before the text is, so we can work all of this out once, in advance, for every possible \(k\). That advance work is the whole of KMP. To do it we need one piece of vocabulary.</p>
+
+<div class="problem">
+  <div class="head">Problem 4.1 <span class="diff">easy</span></div>
+  <p>The pattern is <code>"abcabd"</code>. At some start the first five characters matched and the sixth did not. Without knowing anything else about the text, which of the next four starts (one, two, three and four steps to the right) are certainly dead?</p>
+  <details class="solution"><summary>Solution</summary>
+    <p>The five known text characters are <code>pattern[:5] = "abcab"</code>. Slide the pattern under them:</p>
+    <ul>
+      <li>One step right: the pattern's <code>a</code> sits under the known <code>b</code>. Dead.</li>
+      <li>Two steps: <code>a</code> under <code>c</code>. Dead.</li>
+      <li>Three steps: <code>ab</code> under <code>ab</code>. Alive, with two characters already matched.</li>
+      <li>Four steps: <code>a</code> under <code>b</code>. Dead.</li>
+    </ul>
+    <p>So shifts 1, 2 and 4 are dead and only shift 3 survives among these. (Shift 5 moves past everything known, so it cannot be ruled out either. We will come back to why shift 3 is the one to take.)</p>
+  </details>
+</div>
+
+<h2 id="borders"><span class="num">05</span>Detour: prefixes, suffixes, borders</h2>
+
+<div class="callout detour">
+  <span class="label">Detour</span>
+  <p>You marked this as shaky, so it is built from nothing here. It is worth the stop: the single word <em>border</em> turns the vague "the pattern overlaps with itself" into something we can compute.</p>
+</div>
+
+<p>Take the word <code>"alfalfa"</code>.</p>
+
+<p>A <strong>prefix</strong> is what you get by keeping some characters from the start: <code>""</code>, <code>"a"</code>, <code>"al"</code>, <code>"alf"</code>, …, <code>"alfalfa"</code>. In Python the prefix of length <code>length</code> is <code>word[:length]</code>.</p>
+
+<p>A <strong>suffix</strong> is what you get by keeping some characters from the end: <code>""</code>, <code>"a"</code>, <code>"fa"</code>, <code>"lfa"</code>, …, <code>"alfalfa"</code>. In Python the suffix of length <code>length</code> is <code>word[len(word) - length:]</code>.</p>
+
+<p>A prefix or suffix is <strong>proper</strong> if it is not the whole word. The empty string counts as a proper prefix and as a proper suffix of any non-empty word.</p>
+
+<div class="callout">
+  <span class="label">Definition</span>
+  <p>A <span class="b">border</span> of a word is a string that is both a proper prefix and a proper suffix of it. Equivalently: a length \(L\) with \(0 \le L &lt; \text{len(word)}\) such that the first \(L\) characters equal the last \(L\) characters.</p>
+</div>
+
+<p>For <code>"alfalfa"</code>: the first 4 characters are <code>"alfa"</code> and the last 4 are <code>"alfa"</code>, so <code>"alfa"</code> is a border. So is <code>"a"</code>. So is the empty string, always. Nothing else is: the first 2 are <code>"al"</code> but the last 2 are <code>"fa"</code>.</p>
+
+<p>Two things about borders surprise people. First, the two copies may <strong>overlap</strong>: in <code>"alfalfa"</code> the prefix <code>"alfa"</code> occupies indexes 0–3 and the suffix <code>"alfa"</code> occupies 3–6, sharing the middle <code>a</code>. Second, "proper" matters: without it every word would be its own border and the concept would be useless.</p>
+
+<figure class="demo wide" data-demo="borders">
+  <figcaption><b>Try:</b> drag the slider through every length, then type <code>aaaa</code>, <code>alfalfa</code> and <code>banana</code>. <b>Notice:</b> for <code>abracadabra</code> only lengths 0, 1 and 4 work, and that most words you type have no border except the empty one.</figcaption>
+</figure>
+
+<p>A direct translation of the definition into code:</p>
+
+<pre><code class="language-python">def border_lengths_brute_force(word: str) -&gt; list[int]:
+    """Every length L (0 &lt; L &lt; len(word)) such that the first L characters equal the last L."""
+    return [
+        length
+        for length in range(1, len(word))
+        if word[:length] == word[len(word) - length:]
+    ]
+
+
+def border_table_brute_force(pattern: str) -&gt; list[int]:
+    """border_length[end_index] = length of the longest border of pattern[: end_index + 1]."""
+    border_length: list[int] = []
+    for end_index in range(len(pattern)):
+        prefix = pattern[: end_index + 1]
+        border_length.append(max(border_lengths_brute_force(prefix), default=0))
+    return border_length
+
+
+if __name__ == "__main__":
+    for word in ["abracadabra", "alfalfa", "cocoa", "aaaa", "banana"]:
+        lengths = border_lengths_brute_force(word)
+        print(f"{word:12} borders: {[word[:length] for length in lengths]}")
+    print()
+    for pattern in ["cocoa", "abracadabra", "aabaaab"]:
+        print(f"{pattern:12} table:   {border_table_brute_force(pattern)}")</code></pre>
+<pre class="output">abracadabra  borders: ['a', 'abra']
+alfalfa      borders: ['a', 'alfa']
+cocoa        borders: []
+aaaa         borders: ['a', 'aa', 'aaa']
+banana       borders: []
+
+cocoa        table:   [0, 0, 1, 2, 0]
+abracadabra  table:   [0, 0, 0, 1, 0, 1, 0, 1, 2, 3, 4]
+aabaaab      table:   [0, 1, 0, 1, 2, 2, 3]</pre>
+
+<p>(The second function and the "table" lines belong to section 7. Ignore them for now.)</p>
+
+<div class="problem">
+  <div class="head">Problem 5.1 <span class="diff">easy</span></div>
+  <p>List every non-empty border of <code>"tartar"</code>, <code>"onion"</code>, <code>"ababa"</code> and <code>"level"</code>.</p>
+  <details class="solution"><summary>Solution</summary>
+    <ul>
+      <li><code>"tartar"</code>: first 3 = <code>"tar"</code> = last 3. Lengths 1, 2, 4, 5 fail (for example first 1 is <code>"t"</code>, last 1 is <code>"r"</code>). Borders: <code>"tar"</code>.</li>
+      <li><code>"onion"</code>: first 2 = <code>"on"</code> = last 2. Borders: <code>"on"</code>.</li>
+      <li><code>"ababa"</code>: <code>"a"</code> (length 1) and <code>"aba"</code> (length 3, overlapping in the middle). Length 2 fails: <code>"ab"</code> against <code>"ba"</code>.</li>
+      <li><code>"level"</code>: only <code>"l"</code>. A palindrome is not automatically rich in borders: a border needs the start to equal the end read in the <em>same</em> direction.</li>
+    </ul>
+    <p>The common mistake is to answer <code>"aba"</code> and stop for <code>"ababa"</code>, or to reject <code>"aba"</code> because the two copies overlap. Overlap is allowed.</p>
+  </details>
+</div>
+
+<div class="problem">
+  <div class="head">Problem 5.2 <span class="diff medium">medium</span></div>
+  <p>A word has length 10 and a border of length 7. Show that its characters at indexes 0, 3, 6 and 9 are all equal.</p>
+  <details class="hint"><summary>Hint</summary><p>Write out what "the first 7 characters equal the last 7 characters" says position by position. The last 7 start at index 3.</p></details>
+  <details class="solution"><summary>Solution</summary>
+    <p>The prefix of length 7 is <code>word[0:7]</code> and the suffix of length 7 is <code>word[3:10]</code>. They are equal, so position by position <code>word[i] == word[i + 3]</code> for every <code>i</code> from 0 to 6.</p>
+    <p>Apply that with <code>i = 0</code>, then <code>i = 3</code>, then <code>i = 6</code>: <code>word[0] == word[3] == word[6] == word[9]</code>.</p>
+    <p>This is a first glimpse of a fact section 13 leans on: a border of length \(L\) in a word of length \(n\) is the same thing as the word repeating itself every \(n - L\) characters.</p>
+  </details>
+</div>
+
+<h2 id="insight"><span class="num">06</span>Which shifts can survive?</h2>
+
+<p>Back to the search. We matched the first \(k\) characters of the pattern and then hit a mismatch. We know the last \(k\) characters of the text: they are <code>pattern[:k]</code>. We want to move the pattern to the right. How far?</p>
+
+<p>Moving it right by a shift \(s\) puts the start of the pattern under the known characters, with \(k - s\) columns of overlap. That shift can only lead to an occurrence if every overlapping column agrees. Try it by hand on a case with a long matched part:</p>
+
+<figure class="demo wide" data-demo="shift">
+  <figcaption>The top row is the part of the text we have just matched, so it is known. The bottom row is the pattern moved right. <b>Try:</b> drag the shift from 1 to 11. <b>Notice:</b> shifts 1 to 6 all die, and the first survivor is 7, where the overlap is <code>abra</code> against <code>abra</code>. Then type <code>aaaa</code> and <code>cocoa</code> as the matched part.</figcaption>
+</figure>
+
+<p>Now read off, in symbols, what "every overlapping column agrees" says. On top, the overlap is the last \(k - s\) known characters: the <em>suffix</em> of <code>pattern[:k]</code> of length \(k-s\). Below, it is the first \(k - s\) characters of the pattern: the <em>prefix</em> of <code>pattern[:k]</code> of length \(k-s\). They must be equal. A prefix that equals a suffix: that is a border.</p>
+
+<div class="callout key">
+  <span class="label">Shifts are borders</span>
+  <p>After matching \(k\) characters, moving the pattern right by \(s\) (with \(1 \le s \le k\)) can lead to an occurrence only if <code>pattern[:k]</code> has a <span class="b">border</span> of length \(k - s\). A long border means a short shift, and the other way round.</p>
+</div>
+
+<p>Which surviving shift should we take? The <em>smallest</em> one. Every smaller shift is provably dead, so skipping those loses nothing. But a surviving shift might be a real occurrence, so we must not jump over it. The smallest shift corresponds to the <strong>longest border</strong>.</p>
+
+<p>And here is the part that removes the second waste. Say the longest border of <code>pattern[:k]</code> has length \(b\). After shifting by \(k - b\), the first \(b\) characters of the pattern sit under text characters that are already known to equal them. So we do not re-compare. We simply say: \(b\) characters are matched now, and we carry on comparing <code>pattern[b]</code> with the very text character that caused the mismatch.</p>
+
+<div class="callout key">
+  <span class="label">The KMP rule</span>
+  <p>On a mismatch after \(k \ge 1\) matched characters: set the number of matched characters to \(b\), the length of the longest border of <code>pattern[:k]</code>. Do not move in the text. Compare again.</p>
+  <p>On a mismatch with \(k = 0\): nothing is known, so move to the next text character.</p>
+</div>
+
+<p>The text position never decreases. The backward walk of the naive search is gone.</p>
+
+<div class="problem">
+  <div class="head">Problem 6.1 <span class="diff">easy</span></div>
+  <p>For each matched part, give the new number of matched characters and the distance the pattern slides: (a) <code>"abcab"</code>, (b) <code>"aaaa"</code>, (c) <code>"abcd"</code>, (d) <code>"abracadabra"</code>.</p>
+  <details class="solution"><summary>Solution</summary>
+    <p>New matched count = length of the longest border; slide = \(k\) minus that.</p>
+    <ul>
+      <li>(a) <code>"abcab"</code>, \(k=5\): longest border <code>"ab"</code>. Matched count 2, slide 3.</li>
+      <li>(b) <code>"aaaa"</code>, \(k=4\): longest border <code>"aaa"</code>. Matched count 3, slide 1. A word made of one letter is the worst case for sliding: you only ever move one step. But you still do not re-compare the three <code>a</code>s.</li>
+      <li>(c) <code>"abcd"</code>, \(k=4\): no non-empty border. Matched count 0, slide 4: the pattern jumps past everything.</li>
+      <li>(d) <code>"abracadabra"</code>, \(k=11\): longest border <code>"abra"</code>. Matched count 4, slide 7.</li>
+    </ul>
+  </details>
+</div>
+
+<div class="problem">
+  <div class="head">Problem 6.2 <span class="diff medium">medium</span></div>
+  <p>A friend proposes to always fall back to the <em>shortest</em> non-empty border, "because that shifts further and is faster". Find a text and a pattern where this misses an occurrence.</p>
+  <details class="hint"><summary>Hint</summary><p>You need a matched part with at least two non-empty borders. Words made of one letter have plenty.</p></details>
+  <details class="solution"><summary>Solution</summary>
+    <p>Text <code>"aaaab"</code>, pattern <code>"aaab"</code>. At start 0 the first three characters match (\(k = 3\)), then <code>text[3] = "a"</code> meets <code>pattern[3] = "b"</code>.</p>
+    <p>The matched part <code>"aaa"</code> has borders <code>"aa"</code> and <code>"a"</code>. The longest, <code>"aa"</code>, slides the pattern by 1, to start 1, where the occurrence <code>text[1:5] = "aaab"</code> really is.</p>
+    <p>The friend's rule takes <code>"a"</code> and slides by 2, to start 2. From there <code>text[2:]</code> is <code>"aab"</code>, too short to hold the pattern. The occurrence at start 1 was jumped over.</p>
+    <p>Larger shifts are only safe when every smaller one is dead, and a longer border is exactly a smaller shift that is not dead.</p>
+  </details>
+</div>
+
+<h2 id="table"><span class="num">07</span>The border table</h2>
+
+<p>The rule needs one number for every possible \(k\): the length of the longest border of <code>pattern[:k]</code>. There are only \(m\) possible values of \(k\), so we compute them all before the search starts and store them in a list.</p>
+
+<div class="callout">
+  <span class="label">Definition</span>
+  <p><code>border_length[end_index]</code> is the length of the longest border of the prefix that ends at <code>end_index</code>, that is, of <code>pattern[: end_index + 1]</code>.</p>
+</div>
+
+<p>For <code>"cocoa"</code>:</p>
+
+<table class="trace">
+  <tr><th>end_index</th><th>prefix</th><th>longest border</th><th>border_length</th></tr>
+  <tr><td>0</td><td class="p">c</td><td>(empty)</td><td class="b">0</td></tr>
+  <tr><td>1</td><td class="p">co</td><td>(empty)</td><td class="b">0</td></tr>
+  <tr><td>2</td><td class="p">coc</td><td class="b">c</td><td class="b">1</td></tr>
+  <tr><td>3</td><td class="p">coco</td><td class="b">co</td><td class="b">2</td></tr>
+  <tr><td>4</td><td class="p">cocoa</td><td>(empty)</td><td class="b">0</td></tr>
+</table>
+
+<p>That is the list <code>[0, 0, 1, 2, 0]</code> printed by <code>border_table_brute_force</code> in the code of section 5. The same table goes by several other names: the <em>prefix function</em> (written \(\pi\)), the <em>failure function</em>, and on LeetCode usually <code>lps</code>, for "longest proper prefix which is also a suffix".</p>
+
+<div class="callout warn">
+  <span class="label">The off-by-one to get right once</span>
+  <p>The table is indexed by the <em>last index</em> of a prefix, while the search thinks in terms of <em>how many</em> characters matched. The prefix of length \(k\) ends at index \(k - 1\). So the fallback is <code>matched_count = border_length[matched_count - 1]</code>. Almost every broken KMP has this line wrong.</p>
+</div>
+
+<p>It helps to draw the table as a picture. Make one node for every possible value of <code>matched_count</code>, from 0 to \(m\). A <span class="p">yellow</span> arrow leads one node forward and is labelled with the pattern character that has to match. A <span class="b">lavender</span> arc leads from a node back to where a mismatch sends you. To keep the picture readable, arcs to node 0 are left out: a node with no arc falls back to 0.</p>
+
+<figure class="fig wide">
+  <div data-fig="chain" data-pattern="cocoa" data-mode="fail"></div>
+  <figcaption>The pattern <code>"cocoa"</code>. Node 4 means "<code>coco</code> is matched". Its arc goes to node 2, because the longest border of <code>"coco"</code> is <code>"co"</code>. Node 5 (the whole pattern) has no arc, so it goes back to 0: <code>"cocoa"</code> has no non-empty border.</figcaption>
+</figure>
+
+<figure class="fig wide">
+  <div data-fig="chain" data-pattern="abracadabra" data-mode="fail"></div>
+  <figcaption>The pattern <code>"abracadabra"</code>, table <code>[0, 0, 0, 1, 0, 1, 0, 1, 2, 3, 4]</code>. Follow arcs from node 11: to 4 (<code>"abra"</code>), then to 1 (<code>"a"</code>), then (no arc) to 0. Those stops are exactly the border lengths 4, 1, 0 the explorer in section 5 found. That is not a coincidence, and section 9 depends on it.</figcaption>
+</figure>
+
+<div class="problem">
+  <div class="head">Problem 7.1 <span class="diff">easy</span></div>
+  <p>Write the border table for <code>"onion"</code>, <code>"aaaa"</code> and <code>"abcabcd"</code>.</p>
+  <details class="solution"><summary>Solution</summary>
+    <ul>
+      <li><code>"onion"</code>: prefixes <code>o</code>, <code>on</code>, <code>oni</code> have no border; <code>onio</code> has <code>o</code>; <code>onion</code> has <code>on</code>. Table <code>[0, 0, 0, 1, 2]</code>.</li>
+      <li><code>"aaaa"</code>: <code>a</code> → 0, <code>aa</code> → 1, <code>aaa</code> → 2, <code>aaaa</code> → 3. Table <code>[0, 1, 2, 3]</code>. The first entry is 0, not 1: the border must be proper.</li>
+      <li><code>"abcabcd"</code>: <code>[0, 0, 0, 1, 2, 3, 0]</code>. The run 1, 2, 3 grows while the second <code>abc</code> copies the first, and the final <code>d</code> destroys every border at once.</li>
+    </ul>
+  </details>
+</div>
+
+<div class="problem">
+  <div class="head">Problem 7.2 <span class="diff medium">medium</span></div>
+  <p>In all three tables above, each entry is at most one more than the entry before it. Is that always true? Explain why, or give a counterexample.</p>
+  <details class="solution"><summary>Solution</summary>
+    <p>It is always true: <code>border_length[i + 1] &lt;= border_length[i] + 1</code>.</p>
+    <p>Suppose the prefix ending at index \(i+1\) has a border of length \(L \ge 1\). Its first \(L\) characters equal its last \(L\) characters. Delete the last character from both copies. What is left of the first copy is <code>pattern[:L-1]</code>; what is left of the second copy is the last \(L-1\) characters of the prefix ending at index \(i\). They are still equal, so the prefix ending at \(i\) has a border of length \(L - 1\). Hence \(L - 1 \le\) <code>border_length[i]</code>.</p>
+    <p>Entries can rise by at most 1 per step but can fall by any amount (<code>"abcabcd"</code> falls from 3 to 0). Hold on to this shape: slow climbs and sudden drops. It is the whole reason the algorithm is linear.</p>
+  </details>
+</div>
+
+<h2 id="search"><span class="num">08</span>The search loop</h2>
+
+<p>We have a rule and a table. For this section, pretend the table is given (we take it from the slow brute-force function of section 5) and concentrate on the search. The warm-up question is: what does the loop have to remember?</p>
+
+<p>Only two numbers. <code>text_index</code>, the position of the text character we are about to look at; it only ever goes up. And <code>matched_count</code>, the number of pattern characters that currently match the text ending just before <code>text_index</code>. The start of the current attempt is never stored: it is <code>text_index - matched_count</code> if you ever want it.</p>
+
+<p>For each text character there are three things that can happen:</p>
+
+<ol>
+  <li>It equals <code>pattern[matched_count]</code>. One more character matches: <code>matched_count += 1</code>.</li>
+  <li>It differs and <code>matched_count &gt; 0</code>. Apply the KMP rule: <code>matched_count = border_length[matched_count - 1]</code>, and look at the <em>same</em> text character again.</li>
+  <li>It differs and <code>matched_count == 0</code>. Nothing to reuse; go to the next text character.</li>
+</ol>
+
+<p>Case 2 can repeat. After falling back to a border of length \(b\), the character <code>pattern[b]</code> may not match either. But then we are in the same situation as before, only with \(b\) matched characters instead of \(k\), and the same reasoning applies: fall back to the longest border of <code>pattern[:b]</code>. That is why the code has a <code>while</code> and not an <code>if</code>.</p>
+
+<pre><code class="language-python">from borders import border_table_brute_force
+
+
+def kmp_search(text: str, pattern: str) -&gt; list[int]:
+    """Start index of every occurrence of a non-empty pattern in text."""
+    border_length = border_table_brute_force(pattern)  # slow for now; section 9 fixes it
+    match_starts: list[int] = []
+    matched_count = 0  # how many pattern characters match the text ending right here
+    for text_index, text_char in enumerate(text):
+        while matched_count &gt; 0 and pattern[matched_count] != text_char:
+            matched_count = border_length[matched_count - 1]  # slide to the longest border
+        if pattern[matched_count] == text_char:
+            matched_count += 1
+        if matched_count == len(pattern):
+            match_starts.append(text_index - len(pattern) + 1)
+            matched_count = border_length[matched_count - 1]
+    return match_starts
+
+
+if __name__ == "__main__":
+    print(kmp_search("cocococoa", "cocoa"))
+    print(kmp_search("the cat sat on the mat", "at"))
+    print(kmp_search("aaaaaa", "aaa"))</code></pre>
+<pre class="output">[4]
+[5, 9, 20]
+[0, 1, 2, 3]</pre>
+
+<p>One line needs a comment: what happens after a full match. All \(m\) characters matched, so there is no <code>pattern[m]</code> to compare next. We treat this exactly like a mismatch one step past the end: the matched part is the whole pattern, so we fall back to the longest border of the whole pattern, <code>border_length[m - 1]</code>. This is what finds overlapping occurrences. For <code>"aaa"</code> in <code>"aaaaaa"</code> the border is <code>"aa"</code>, two characters stay matched, and the next <code>a</code> completes another occurrence at once.</p>
+
+<h3>Walkthrough</h3>
+
+<figure class="demo wide" data-demo="kmp">
+  <figcaption>The demo opens on the first fallback. <b>Try:</b> step back once to see the mismatch that caused it, then step forward to the end. <b>Notice:</b> the ▲ under the text never moves left; on a fallback the pattern jumps and its first cells turn <span class="b">lavender</span>, meaning "known to match, not compared". Compare the final comparison count with the naive total. Then try text <code>aaaaaaaaaaab</code> with pattern <code>aaab</code>.</figcaption>
+</figure>
+
+<p>The same run as a table, one row per text character. This is the form to use when tracing by hand:</p>
+
+<table class="trace">
+  <tr><th>text_index</th><th>char</th><th>what happens</th><th>matched_count after</th></tr>
+  <tr><td>0</td><td class="t">c</td><td><code>pattern[0]</code> is <code>c</code>: match</td><td>1</td></tr>
+  <tr><td>1</td><td class="t">o</td><td><code>pattern[1]</code> is <code>o</code>: match</td><td>2</td></tr>
+  <tr><td>2</td><td class="t">c</td><td><code>pattern[2]</code> is <code>c</code>: match</td><td>3</td></tr>
+  <tr><td>3</td><td class="t">o</td><td><code>pattern[3]</code> is <code>o</code>: match</td><td>4</td></tr>
+  <tr><td>4</td><td class="t">c</td><td><code>pattern[4]</code> is <code>a</code>: mismatch, fall back 4 → <code>border_length[3]</code> = 2; <code>pattern[2]</code> is <code>c</code>: match</td><td>3</td></tr>
+  <tr><td>5</td><td class="t">o</td><td><code>pattern[3]</code> is <code>o</code>: match</td><td>4</td></tr>
+  <tr><td>6</td><td class="t">c</td><td><code>pattern[4]</code> is <code>a</code>: mismatch, fall back 4 → 2; <code>pattern[2]</code> is <code>c</code>: match</td><td>3</td></tr>
+  <tr><td>7</td><td class="t">o</td><td><code>pattern[3]</code> is <code>o</code>: match</td><td>4</td></tr>
+  <tr><td>8</td><td class="t">a</td><td><code>pattern[4]</code> is <code>a</code>: match. Whole pattern: report start 8 − 5 + 1 = 4, then fall back to <code>border_length[4]</code> = 0</td><td>5, then 0</td></tr>
+</table>
+
+<p>Eleven comparisons (nine rows, two of which compared twice) against the naive seventeen.</p>
+
+<div class="problem">
+  <div class="head">Problem 8.1 <span class="diff">easy</span></div>
+  <p>Trace the search for <code>"abab"</code> (table <code>[0, 0, 1, 2]</code>) in <code>"abababab"</code>. Give <code>matched_count</code> after each text character, the reported starts, and the number of comparisons.</p>
+  <details class="solution"><summary>Solution</summary>
+    <p>Characters 0–3 (<code>a b a b</code>) match one after another: 1, 2, 3, 4. Full match, report start 0, fall back to <code>border_length[3]</code> = 2.</p>
+    <p>Character 4 is <code>a</code>, compared with <code>pattern[2] = a</code>: 3. Character 5 is <code>b</code> against <code>pattern[3]</code>: 4. Report start 2, fall back to 2.</p>
+    <p>Characters 6 and 7 repeat that: 3, then 4. Report start 4.</p>
+    <p>Sequence: 1, 2, 3, 4, 3, 4, 3, 4. Starts <code>[0, 2, 4]</code>. Eight comparisons, one per text character, with no failed comparison at all: the fallbacks after a full match cost no comparison. The naive search needs 14.</p>
+  </details>
+</div>
+
+<div class="problem">
+  <div class="head">Problem 8.2 <span class="diff medium">medium</span></div>
+  <p>Trace <code>"mamamia"</code> (table <code>[0, 0, 1, 2, 3, 0, 0]</code>) in <code>"mamamamamia"</code>. Where do fallbacks happen and where is the occurrence?</p>
+  <details class="solution"><summary>Solution</summary>
+    <p>Characters 0–4 (<code>m a m a m</code>) match: <code>matched_count</code> reaches 5.</p>
+    <p>Character 5 is <code>a</code>; <code>pattern[5]</code> is <code>i</code>. Mismatch. Fall back: <code>border_length[4]</code> = 3 (the border <code>"mam"</code> of <code>"mamam"</code>). Now <code>pattern[3]</code> is <code>a</code>: match, 4.</p>
+    <p>Character 6 is <code>m</code> against <code>pattern[4] = m</code>: 5.</p>
+    <p>Character 7 is <code>a</code> against <code>pattern[5] = i</code>: mismatch, fall back to 3, <code>pattern[3] = a</code> matches: 4.</p>
+    <p>Characters 8, 9, 10 (<code>m i a</code>) match: 5, 6, 7. Full match, start 10 − 7 + 1 = 4.</p>
+    <p>Sequence: 1, 2, 3, 4, 5, 4, 5, 4, 5, 6, 7. Two fallbacks, 13 comparisons (naive: 21). Each fallback slid the pattern by 5 − 3 = 2, which is why the occurrence sits at 2 + 2 = 4.</p>
+  </details>
+</div>
+
+<div class="problem">
+  <div class="head">Problem 8.3 <span class="diff medium">medium</span></div>
+  <p>Find the bug. Someone wrote the fallback inside the <code>while</code> as <code>matched_count = border_length[matched_count]</code>. Describe what happens for (a) pattern <code>"coconut"</code> in text <code>"cococonut"</code>, and (b) pattern <code>"aab"</code> in text <code>"ab"</code>.</p>
+  <details class="solution"><summary>Solution</summary>
+    <p>The index should be <code>matched_count - 1</code>: the matched part has <code>matched_count</code> characters and ends at index <code>matched_count - 1</code>. The buggy line looks up the border of a prefix that is one character too long, including the character that just failed to match.</p>
+    <p>(a) Table of <code>"coconut"</code>: <code>[0, 0, 1, 2, 0, 0, 0]</code>. After <code>coco</code> (count 4) the text has <code>c</code> and the pattern has <code>n</code>. Correct: <code>border_length[3]</code> = 2, keep <code>co</code>, and the occurrence at index 2 is found. Buggy: <code>border_length[4]</code> = 0, everything is thrown away, and the search restarts at text index 4 with nothing matched. From there the text reads <code>conut</code>, which is not the pattern. The result is <code>[]</code>: a silently missed occurrence.</p>
+    <p>(b) Table of <code>"aab"</code>: <code>[0, 1, 0]</code>. After the first <code>a</code> the count is 1. Next text character is <code>b</code>, and <code>pattern[1]</code> is <code>a</code>: mismatch. Buggy fallback: <code>border_length[1]</code> = 1. The count is still 1, the same comparison fails again, forever. An infinite loop.</p>
+    <p>The correct line can never loop: a border is <em>proper</em>, so <code>border_length[k - 1] &lt; k</code> and every fallback strictly decreases the count.</p>
+  </details>
+</div>
+
+<h2 id="build"><span class="num">09</span>Building the table fast</h2>
+
+<p>The search is now fast, but the table still comes from brute force: for each of \(m\) prefixes it tries up to \(m\) lengths, and each try compares up to \(m\) characters. That is on the order of \(m^3\) steps. We need to do better, and the way to do better is to compute the entries from left to right and let each one help the next.</p>
+
+<h3>A longer border is a shorter border plus one character</h3>
+
+<p>Suppose we already know everything about the prefix ending at index <code>end_index - 1</code>, and we now add the character <code>pattern[end_index]</code>. What can a border of the new, longer prefix look like?</p>
+
+<p>Say it has length \(L \ge 1\). Its first copy is <code>pattern[:L]</code>, and its second copy ends at <code>end_index</code>. Cut the last character off both copies. The remainders, of length \(L - 1\), are still equal, and the second one now ends at <code>end_index - 1</code>. So:</p>
+
+<div class="callout key">
+  <span class="label">Borders grow one character at a time</span>
+  <p>Every non-empty border of the prefix ending at <code>end_index</code> is a border of the previous prefix, extended by one character. A border of length \(c\) of the previous prefix can be extended exactly when <code>pattern[c] == pattern[end_index]</code>: the character after its first copy must equal the newly added character.</p>
+</div>
+
+<p>So to find the longest border of the new prefix, go through the borders of the previous prefix from longest to shortest and take the first one that can be extended. If none can, not even the empty one (which extends when <code>pattern[0] == pattern[end_index]</code>), the answer is 0.</p>
+
+<p>The longest border of the previous prefix is in the table already: <code>border_length[end_index - 1]</code>. But how do we get the second longest, the third longest, without brute force?</p>
+
+<h3>Borders of borders</h3>
+
+<p>Look at <code>"abracadabra"</code> again. Its borders are <code>"abra"</code> and <code>"a"</code>. Now look at the borders of <code>"abra"</code> itself: just <code>"a"</code>.</p>
+
+<figure class="fig wide">
+  <div data-fig="chainrows" data-word="abracadabra"></div>
+  <figcaption>Each row is the longest border of the row above. Reading down the left edge gives every border of the top word, in order of decreasing length: <code>abra</code>, <code>a</code>, then the empty string.</figcaption>
+</figure>
+
+<p>This always works, and the reason fits in one picture.</p>
+
+<figure class="fig wide">
+  <svg viewBox="0 0 760 250" width="760" role="img" aria-label="A shorter border of a word is a border of its longest border">
+    <text x="20" y="22" font-size="13" fill="#94a3b0">the word</text>
+    <rect x="20" y="30" width="720" height="30" fill="#1a242f" stroke="#94a3b0"/>
+    <rect x="20" y="30" width="300" height="30" fill="rgba(195,166,255,.25)" stroke="#c3a6ff"/>
+    <rect x="440" y="30" width="300" height="30" fill="rgba(195,166,255,.25)" stroke="#c3a6ff"/>
+    <text x="170" y="50" font-size="15" fill="#c3a6ff" text-anchor="middle">longest border B</text>
+    <text x="590" y="50" font-size="15" fill="#c3a6ff" text-anchor="middle">B again</text>
+    <rect x="20" y="68" width="110" height="26" fill="rgba(143,214,148,.25)" stroke="#8fd694"/>
+    <rect x="630" y="68" width="110" height="26" fill="rgba(143,214,148,.25)" stroke="#8fd694"/>
+    <text x="75" y="86" font-size="14" fill="#8fd694" text-anchor="middle">shorter C</text>
+    <text x="685" y="86" font-size="14" fill="#8fd694" text-anchor="middle">C</text>
+    <text x="380" y="86" font-size="13" fill="#94a3b0" text-anchor="middle">C starts the word and ends the word</text>
+    <line x1="440" y1="104" x2="440" y2="150" stroke="#2f3d4c" stroke-dasharray="4 4"/>
+    <line x1="740" y1="104" x2="740" y2="150" stroke="#2f3d4c" stroke-dasharray="4 4"/>
+    <text x="20" y="142" font-size="13" fill="#94a3b0">the left copy of B, alone</text>
+    <text x="440" y="142" font-size="13" fill="#94a3b0">the right copy of B, alone</text>
+    <rect x="20" y="150" width="300" height="30" fill="rgba(195,166,255,.25)" stroke="#c3a6ff"/>
+    <rect x="440" y="150" width="300" height="30" fill="rgba(195,166,255,.25)" stroke="#c3a6ff"/>
+    <rect x="20" y="188" width="110" height="26" fill="rgba(143,214,148,.25)" stroke="#8fd694"/>
+    <rect x="630" y="188" width="110" height="26" fill="rgba(143,214,148,.25)" stroke="#8fd694"/>
+    <rect x="210" y="188" width="110" height="26" fill="rgba(143,214,148,.10)" stroke="#8fd694" stroke-dasharray="5 4"/>
+    <text x="75" y="206" font-size="14" fill="#8fd694" text-anchor="middle">C</text>
+    <text x="685" y="206" font-size="14" fill="#8fd694" text-anchor="middle">C</text>
+    <text x="265" y="206" font-size="14" fill="#8fd694" text-anchor="middle">C too</text>
+    <text x="380" y="240" font-size="13" fill="#94a3b0" text-anchor="middle">the two copies of B are the same string, so if one ends with C, the other does as well</text>
+  </svg>
+  <figcaption>A border <span class="g">C</span> shorter than the longest border <span class="b">B</span>. C starts the word, so it starts the left copy of B. C ends the word, so it ends the right copy of B. Both copies are the same string, so B starts with C and ends with C: C is a border of B.</figcaption>
+</figure>
+
+<div class="callout key">
+  <span class="label">Borders of borders</span>
+  <p>The borders of a word are: its longest border B, and then the borders of B. So the full list, longest first, is the chain you get by repeatedly asking "what is the longest border of that?": the <span class="b">lavender arcs</span> of section 7, followed until they reach 0.</p>
+</div>
+
+<details class="proof"><summary>Formal proof of both directions</summary>
+  <p>Let the word be \(w\) with length \(n\), let \(B\) be its longest border with length \(b\), and let \(C\) be a string of length \(c &lt; b\).</p>
+  <p><em>If \(C\) is a border of \(w\), it is a border of \(B\).</em> \(C = w[0:c]\), and \(B = w[0:b]\) with \(c &lt; b\), so \(C\) is a proper prefix of \(B\). Also \(C = w[n-c:n]\), and \(B = w[n-b:n]\), so \(C\) is the last \(c\) characters of the right copy of \(B\), hence a proper suffix of \(B\) as a string.</p>
+  <p><em>If \(C\) is a border of \(B\), it is a border of \(w\).</em> \(C\) is a prefix of \(B\), which is a prefix of \(w\), so \(C\) is a prefix of \(w\). \(C\) is a suffix of \(B\), which is a suffix of \(w\), so \(C\) is a suffix of \(w\). And \(c &lt; b &lt; n\), so it is proper.</p>
+  <p>Every border of \(w\) other than \(B\) is shorter than \(B\) (because \(B\) is the longest and two borders of the same length are the same string), so the borders of \(w\) are exactly \(B\) together with the borders of \(B\). Apply the same statement to \(B\), then to its longest border, and so on; the lengths strictly decrease, so the chain ends at the empty string after finitely many steps.</p>
+</details>
+
+<h3>Putting the two together</h3>
+
+<p>To fill <code>border_length[end_index]</code>:</p>
+
+<ol>
+  <li>Start with <code>candidate_length</code> = the longest border of the previous prefix.</li>
+  <li>While the candidate cannot be extended (<code>pattern[candidate_length] != pattern[end_index]</code>) and is not empty, replace it by the next border in the chain: <code>candidate_length = border_length[candidate_length - 1]</code>.</li>
+  <li>If it can be extended now, add 1.</li>
+</ol>
+
+<p>If that looks familiar, it should. It is the search loop, line for line, with the pattern in the role of the text. Building the table is searching for the pattern inside itself, starting one step to the right so that the pattern is not simply matched against its own beginning.</p>
+
+<figure class="demo wide" data-demo="build">
+  <figcaption>The pattern <code>aabaaab</code> is contrived to force a fallback that <em>succeeds</em>, which is where the demo opens: the border <code>aa</code> of <code>aabaa</code> could not be extended by <code>a</code> (the next character after its first copy is <code>b</code>), so the next border in the chain, <code>a</code>, is tried. <b>Try:</b> step forward to see it extend to length 2, then Reset and play it from the start. Then try <code>abracadabra</code>.</figcaption>
+</figure>
+
+<p>The complete algorithm, with nothing left to brute force:</p>
+
+<pre><code class="language-python">def build_border_table(pattern: str) -&gt; list[int]:
+    """border_length[end_index] = length of the longest border of pattern[: end_index + 1]."""
+    border_length = [0] * len(pattern)
+    candidate_length = 0  # longest border of the prefix that ends just before end_index
+    for end_index in range(1, len(pattern)):
+        while candidate_length &gt; 0 and pattern[candidate_length] != pattern[end_index]:
+            candidate_length = border_length[candidate_length - 1]
+        if pattern[candidate_length] == pattern[end_index]:
+            candidate_length += 1
+        border_length[end_index] = candidate_length
+    return border_length
+
+
+def kmp_search(text: str, pattern: str) -&gt; list[int]:
+    """Start index of every occurrence of pattern in text (overlapping ones included)."""
+    if not pattern:
+        return list(range(len(text) + 1))
+    border_length = build_border_table(pattern)
+    match_starts: list[int] = []
+    matched_count = 0  # how many pattern characters match the text ending right here
+    for text_index, text_char in enumerate(text):
+        while matched_count &gt; 0 and pattern[matched_count] != text_char:
+            matched_count = border_length[matched_count - 1]
+        if pattern[matched_count] == text_char:
+            matched_count += 1
+        if matched_count == len(pattern):
+            match_starts.append(text_index - len(pattern) + 1)
+            matched_count = border_length[matched_count - 1]
+    return match_starts
+
+
+if __name__ == "__main__":
+    for pattern in ["cocoa", "abracadabra", "aabaaab"]:
+        print(f"{pattern:12} {build_border_table(pattern)}")
+    print()
+    print(kmp_search("cocococoa", "cocoa"))
+    print(kmp_search("the cat sat on the mat", "at"))
+    print(kmp_search("aaaaaa", "aaa"))
+    print(kmp_search("banana", "nab"))</code></pre>
+<pre class="output">cocoa        [0, 0, 1, 2, 0]
+abracadabra  [0, 0, 0, 1, 0, 1, 0, 1, 2, 3, 4]
+aabaaab      [0, 1, 0, 1, 2, 2, 3]
+
+[4]
+[5, 9, 20]
+[0, 1, 2, 3]
+[]</pre>
+
+<p>The tables agree with the brute-force ones from section 5. A randomized comparison of both builders and both searches on 40,000 inputs found no disagreement.</p>
+
+<div class="problem">
+  <div class="head">Problem 9.1 <span class="diff">easy</span></div>
+  <p>Build the table for <code>"abacabab"</code> by hand with the fast method. Say where fallbacks happen.</p>
+  <details class="solution"><summary>Solution</summary>
+    <table class="trace">
+      <tr><th>end_index</th><th>char</th><th>work</th><th>entry</th></tr>
+      <tr><td>0</td><td>a</td><td>by definition</td><td>0</td></tr>
+      <tr><td>1</td><td>b</td><td>candidate 0: <code>pattern[0]=a</code> ≠ b</td><td>0</td></tr>
+      <tr><td>2</td><td>a</td><td>candidate 0: a = a, extend</td><td>1</td></tr>
+      <tr><td>3</td><td>c</td><td>candidate 1: <code>pattern[1]=b</code> ≠ c, fall back to <code>border_length[0]</code>=0; a ≠ c</td><td>0</td></tr>
+      <tr><td>4</td><td>a</td><td>candidate 0: a = a, extend</td><td>1</td></tr>
+      <tr><td>5</td><td>b</td><td>candidate 1: <code>pattern[1]=b</code> = b, extend</td><td>2</td></tr>
+      <tr><td>6</td><td>a</td><td>candidate 2: <code>pattern[2]=a</code> = a, extend</td><td>3</td></tr>
+      <tr><td>7</td><td>b</td><td>candidate 3: <code>pattern[3]=c</code> ≠ b, fall back to <code>border_length[2]</code>=1; <code>pattern[1]=b</code> = b, extend</td><td>2</td></tr>
+    </table>
+    <p>Table: <code>[0, 0, 1, 0, 1, 2, 3, 2]</code>. The last row is the interesting one: the border <code>aba</code> of <code>abacaba</code> cannot be extended by <code>b</code>, but its own border <code>a</code> can, giving <code>ab</code>.</p>
+  </details>
+</div>
+
+<div class="problem">
+  <div class="head">Problem 9.2 <span class="diff medium">medium</span></div>
+  <p>The loop in <code>build_border_table</code> starts at <code>end_index = 1</code>. What would the table of <code>"aaaa"</code> be if it started at 0 instead, and what does the wrong first entry mean?</p>
+  <details class="solution"><summary>Solution</summary>
+    <p>At <code>end_index = 0</code> with <code>candidate_length = 0</code> the code compares <code>pattern[0]</code> with <code>pattern[0]</code>. They are equal, of course, so the candidate becomes 1 and <code>border_length[0] = 1</code>. Then every later step extends: the table becomes <code>[1, 2, 3, 4]</code> instead of <code>[0, 1, 2, 3]</code>.</p>
+    <p>Each entry now says "the longest border of this prefix is the prefix itself": the improper border we excluded in the definition. In the search, a fallback <code>matched_count = border_length[matched_count - 1]</code> would then leave <code>matched_count</code> unchanged and loop forever. Starting at 1 is what slides the copy one step to the right and keeps the borders proper.</p>
+  </details>
+</div>
+
+<div class="problem">
+  <div class="head">Problem 9.3 <span class="diff hard">hard</span></div>
+  <p>Prove: if a word has borders of lengths \(b\) and \(c\) with \(c &lt; b\) and \(2c \ge b\), then it also has a border of length \(2c - b\). (Example: borders of lengths 8 and 5 force one of length 2.)</p>
+  <details class="hint"><summary>Hint</summary><p>By "borders of borders", the border of length \(c\) is a border of the border of length \(b\). So think of a word of length \(b\) with a border of length \(c\), and recall Problem 5.2: that word repeats itself every \(b - c\) characters.</p></details>
+  <details class="solution"><summary>Solution</summary>
+    <p>Let \(B\) be the border of length \(b\) and \(C\) the one of length \(c\). By the borders-of-borders fact, \(C\) is a border of \(B\). As in Problem 5.2, a border of length \(c\) in a string of length \(b\) means \(B[i] = B[i + p]\) for every valid \(i\), where \(p = b - c\).</p>
+    <p>Now ask whether \(C\) has a border of length \(c - p = 2c - b\) (this needs \(2c - b \ge 0\)). \(C\) is the first \(c\) characters of \(B\), so it inherits the repetition: \(C[i] = C[i + p]\) for \(0 \le i &lt; c - p\). Read as a statement about strings, that says the first \(c - p\) characters of \(C\) equal its last \(c - p\) characters: a border of \(C\) of length \(2c - b\).</p>
+    <p>A border of \(C\) is a border of \(B\), which is a border of the word. Done.</p>
+    <p>Check on <code>"abcabcabcab"</code>, whose borders have lengths 8, 5, 2. With \(b = 8, c = 5\): \(2c - b = 2\). It is there. The border lengths 8, 5, 2 step down by the same amount, 3, which is the period of the word.</p>
+  </details>
+</div>
+
+<h2 id="correct"><span class="num">10</span>Why it never misses a match</h2>
+
+<p>So far the argument has been: dead shifts are skipped, live ones are not. That is convincing for one mismatch. But the loop runs for thousands of characters, with fallbacks stacked on fallbacks. To be sure about the whole run we need a tool for reasoning about loops.</p>
+
+<div class="callout detour">
+  <span class="label">Detour: loop invariants</span>
+  <p>A way to prove a loop correct without simulating it. Built from scratch here because you marked it as shaky; it takes one small example, and then KMP's correctness is a single sentence.</p>
+</div>
+
+<h3>The idea on a loop you already trust</h3>
+
+<pre><code class="language-python">def largest_price(prices: list[int]) -&gt; int:
+    best_price = prices[0]
+    for next_index in range(1, len(prices)):
+        # Invariant: best_price is the largest of the prices seen so far.
+        assert best_price == max(prices[:next_index])
+        if prices[next_index] &gt; best_price:
+            best_price = prices[next_index]
+    return best_price
+
+
+if __name__ == "__main__":
+    print(largest_price([30, 12, 45, 45, 7]))</code></pre>
+<pre class="output">45</pre>
+
+<p>Why does this return the largest price? You could say "it obviously does", but try to say <em>why</em> in a way that would also work for a loop you do not trust. The method is to find a sentence that is true every time the loop is about to start an iteration. Here:</p>
+
+<p style="margin-left:1.2rem"><em>"<code>best_price</code> is the largest of <code>prices[:next_index]</code>."</em></p>
+
+<p>Such a sentence is called a <strong>loop invariant</strong>. Proving it takes three small steps, the same three every time:</p>
+
+<ol>
+  <li><strong>It is true at the start.</strong> Before the first iteration <code>next_index</code> is 1 and <code>best_price</code> is <code>prices[0]</code>, the largest of the one-element list <code>prices[:1]</code>.</li>
+  <li><strong>One iteration keeps it true.</strong> Assume it holds for <code>next_index</code>. The body compares <code>best_price</code> with <code>prices[next_index]</code> and keeps the larger. The largest of <code>prices[:next_index + 1]</code> is the larger of "the largest of <code>prices[:next_index]</code>" and <code>prices[next_index]</code>. So the sentence holds for <code>next_index + 1</code>.</li>
+  <li><strong>At the end it says what we want.</strong> When the loop finishes, the same sentence holds with <code>next_index = len(prices)</code>: <code>best_price</code> is the largest of the whole list.</li>
+</ol>
+
+<p>This is induction, dressed as a loop: step 1 is the base case, step 2 is the induction step. The work is in choosing the sentence. A good invariant describes what the loop's variables <em>mean</em> in terms of the part of the input processed so far. The <code>assert</code> in the code is that sentence, executable.</p>
+
+<div class="problem">
+  <div class="head">Problem 10.1 <span class="diff">easy</span></div>
+  <p>This loop removes duplicates from a sorted list in place and returns how many values remain (LeetCode 26). State an invariant about <code>kept_count</code> that holds before every iteration.</p>
+<pre><code class="language-python">def remove_duplicates(sorted_values: list[int]) -> int:
+    kept_count = 0
+    for value in sorted_values:
+        if kept_count == 0 or sorted_values[kept_count - 1] != value:
+            sorted_values[kept_count] = value
+            kept_count += 1
+    return kept_count</code></pre>
+  <details class="solution"><summary>Solution</summary>
+    <p>"<code>sorted_values[:kept_count]</code> holds the distinct values among the elements read so far, in increasing order, each once."</p>
+    <p>Start: nothing read, <code>kept_count</code> is 0, the empty list holds the distinct values of nothing. Step: the next value is either equal to the last kept one (because the input is sorted, a repeat can only equal the most recent distinct value), in which case nothing changes and the sentence still holds; or it is new and larger, and it is appended. End: all elements read, so the first <code>kept_count</code> cells hold all distinct values.</p>
+    <p>A weaker sentence such as "<code>kept_count</code> is at most the number of elements read" is true but useless: the third step would not give the result. The invariant has to be strong enough to imply the goal at the end.</p>
+  </details>
+</div>
+
+<h3>The invariant of the KMP search</h3>
+
+<p>What does <code>matched_count</code> mean? Section 8 said: the number of pattern characters that match the text ending here. Sharpen that until it is unambiguous:</p>
+
+<div class="callout key">
+  <span class="label">Invariant of the search loop</span>
+  <p>Before the loop reads <code>text[text_index]</code>, <code>matched_count</code> is the length of the <strong>longest</strong> prefix of the pattern, shorter than the whole pattern, that is a suffix of the text read so far, <code>text[:text_index]</code>.</p>
+</div>
+
+<p>The word that carries the weight is <em>longest</em>. A long prefix of the pattern at the end of the text read so far is an occurrence in progress, and the longest one is the occurrence in progress that started earliest. If we always track the earliest-started attempt that is still alive, we cannot have skipped a live one.</p>
+
+<p>Check the sentence against the trace table in section 8. Before index 6 the text read is <code>"cococo"</code> and <code>matched_count</code> is 4. The prefixes of <code>"cocoa"</code> are <code>c</code>, <code>co</code>, <code>coc</code>, <code>coco</code>. Which of them end <code>"cococo"</code>? <code>co</code> and <code>coco</code>. The longest has length 4.</p>
+
+<p>Now the three steps, first in pictures.</p>
+
+<p><strong>Start.</strong> Nothing read; the only prefix that is a suffix of the empty text is the empty one; <code>matched_count</code> is 0.</p>
+
+<p><strong>One iteration.</strong> We read one more character, <code>text_char</code>. Any pattern prefix that ends the <em>new</em> text consists of a pattern prefix that ended the <em>old</em> text, plus <code>text_char</code>. (Cut the last character off, as in section 9.) So the candidates are: the pattern prefixes that ended the old text, each extended by one.</p>
+
+<p>Which pattern prefixes ended the old text? The longest has length <code>matched_count</code>, by the invariant. Any shorter one is a prefix of the pattern and a suffix of the old text; since the old text ends with <code>pattern[:matched_count]</code>, it is a prefix and a suffix of <code>pattern[:matched_count]</code>: a border of it. So the full list of candidates, longest first, is <code>matched_count</code> followed by the border chain. The <code>while</code> loop walks exactly that list and stops at the first candidate whose next pattern character equals <code>text_char</code>. First in a longest-first list means longest. The invariant holds again.</p>
+
+<p><strong>What it gives us.</strong> An occurrence ending at <code>text_index</code> means the whole pattern is a suffix of the text read so far. After the <code>if</code>, <code>matched_count</code> is the longest pattern prefix ending there, so it equals \(m\) exactly when an occurrence ends there. Nothing is missed and nothing false is reported. After reporting, the code falls back to the longest border of the whole pattern, which is the longest prefix <em>shorter than the pattern</em> ending there, and the sentence is true again for the next round.</p>
+
+<details class="proof"><summary>Formal proof</summary>
+  <p>Notation: \(T_i\) is <code>text[:i]</code>, \(P_k\) is <code>pattern[:k]</code>, \(m\) is <code>len(pattern)</code>, and \(\pi(k)\) is the length of the longest border of \(P_k\), which is <code>border_length[k - 1]</code>. Define</p>
+  \[ F(i) = \max\{\,k \le m : P_k \text{ is a suffix of } T_i\,\}, \qquad G(i) = \max\{\,k &lt; m : P_k \text{ is a suffix of } T_i\,\}. \]
+  <p><strong>Claim.</strong> At the top of the iteration for index \(i\), <code>matched_count</code> \(= G(i)\). After the <code>while</code> and the <code>if</code>, <code>matched_count</code> \(= F(i+1)\).</p>
+  <p><em>Base.</em> \(G(0) = 0\) because \(T_0\) is empty.</p>
+  <p><em>Step.</em> Assume <code>matched_count</code> \(= g = G(i)\). Let \(S = \{k &lt; m : P_k \text{ suffix of } T_i\}\).</p>
+  <p>(1) \(S = \{g, \pi(g), \pi(\pi(g)), \dots, 0\}\). Indeed \(g \in S\) is its maximum. For \(k &lt; g\): \(P_k\) is a prefix of \(P_g\) (both are prefixes of the pattern), and \(P_k\) is a suffix of \(T_i\) if and only if it is a suffix of \(P_g\) (because \(T_i\) ends with \(P_g\) and \(k &lt; g\)). So \(k \in S\) exactly when \(P_k\) is a border of \(P_g\), and by the borders-of-borders lemma those are \(\pi(g), \pi(\pi(g)), \dots, 0\).</p>
+  <p>(2) For \(k' \ge 1\): \(P_{k'}\) is a suffix of \(T_{i+1}\) if and only if \(P_{k'-1}\) is a suffix of \(T_i\) and <code>pattern[k'-1] == text[i]</code>. Since \(k' \le m\), we have \(k' - 1 &lt; m\), so the condition is \(k'-1 \in S\) and <code>pattern[k'-1] == text[i]</code>.</p>
+  <p>(3) The <code>while</code> loop visits the elements of \(S\) in decreasing order and stops at the first \(k\) with <code>pattern[k] == text[i]</code>, or at 0. If it stops at a \(k\) with equality, the <code>if</code> makes <code>matched_count</code> \(= k + 1\), the largest \(k'\) satisfying (2). If it reaches 0 without equality, no \(k' \ge 1\) satisfies (2), and <code>matched_count</code> stays 0. In both cases <code>matched_count</code> \(= F(i+1)\).</p>
+  <p>(4) If \(F(i+1) = m\), an occurrence ends at \(i\) and is reported; the proper prefixes that are suffixes of \(T_{i+1}\) are then the borders of the pattern, so \(G(i+1) = \pi(m)\), which is what the code assigns. If \(F(i+1) &lt; m\), no occurrence ends at \(i\), and \(G(i+1) = F(i+1)\). Either way the claim holds for \(i + 1\). ∎</p>
+  <p>The same proof, with the pattern read in place of the text and the loop started at 1, shows that <code>build_border_table</code> is correct: its invariant is "<code>candidate_length</code> is the longest border of <code>pattern[:end_index]</code>".</p>
+</details>
+
+<p>A proof is one kind of evidence; an executable check is another. This version of the search recomputes the invariant by brute force before every iteration and asserts it:</p>
+
+<pre><code class="language-python">import random
+
+from kmp import build_border_table
+
+
+def longest_prefix_ending_here(text_so_far: str, pattern: str) -&gt; int:
+    """Largest count &lt; len(pattern) such that pattern[:count] is a suffix of text_so_far."""
+    for count in range(min(len(pattern) - 1, len(text_so_far)), -1, -1):
+        if text_so_far.endswith(pattern[:count]):
+            return count
+    raise AssertionError("unreachable: count 0 always works")
+
+
+def kmp_search_checked(text: str, pattern: str) -&gt; list[int]:
+    border_length = build_border_table(pattern)
+    match_starts: list[int] = []
+    matched_count = 0
+    for text_index, text_char in enumerate(text):
+        assert matched_count == longest_prefix_ending_here(text[:text_index], pattern)
+        while matched_count &gt; 0 and pattern[matched_count] != text_char:
+            matched_count = border_length[matched_count - 1]
+        if pattern[matched_count] == text_char:
+            matched_count += 1
+        if matched_count == len(pattern):
+            match_starts.append(text_index - len(pattern) + 1)
+            matched_count = border_length[matched_count - 1]
+    assert matched_count == longest_prefix_ending_here(text, pattern)
+    return match_starts
+
+
+if __name__ == "__main__":
+    random.seed(2026)
+    for _ in range(20_000):
+        text = "".join(random.choice("ab") for _ in range(random.randint(0, 30)))
+        pattern = "".join(random.choice("ab") for _ in range(random.randint(1, 6)))
+        kmp_search_checked(text, pattern)
+    print("the invariant held before every one of the loop iterations, on 20000 random inputs")</code></pre>
+<pre class="output widecode">the invariant held before every one of the loop iterations, on 20000 random inputs</pre>
+
+<div class="problem">
+  <div class="head">Problem 10.2 <span class="diff">easy</span></div>
+  <p>The pattern is <code>"abab"</code> and the text read so far is <code>"xabababa"</code>. What does the invariant say <code>matched_count</code> is? (No tracing; use the sentence.)</p>
+  <details class="solution"><summary>Solution</summary>
+    <p>We need the longest prefix of <code>"abab"</code>, shorter than 4, that ends <code>"xabababa"</code>. Prefixes shorter than the pattern: <code>""</code>, <code>"a"</code>, <code>"ab"</code>, <code>"aba"</code>. The text ends in <code>…baba</code>: it ends with <code>"aba"</code>. So <code>matched_count</code> is 3.</p>
+    <p>The tempting wrong answer is 1, from thinking "the last full match ended one character ago, and then we read one <code>a</code>". The invariant does not care about history, only about how the text read so far ends.</p>
+  </details>
+</div>
+
+<div class="problem">
+  <div class="head">Problem 10.3 <span class="diff medium">medium</span></div>
+  <p>Suppose the fallback used some border that is <em>not</em> the longest (as the friend in Problem 6.2 wanted). Which of the three steps of the invariant proof breaks?</p>
+  <details class="solution"><summary>Solution</summary>
+    <p>Step 2, "one iteration keeps it true". The <code>while</code> loop would no longer walk the candidates in longest-first order: it would skip some. The first extendable candidate it finds is then not necessarily the longest extendable one, so after the iteration <code>matched_count</code> can be smaller than the longest pattern prefix ending the text. The sentence with "longest" is false from then on, and with it the conclusion "an occurrence ends here exactly when <code>matched_count == m</code>".</p>
+    <p>A weaker invariant, "<code>pattern[:matched_count]</code> is <em>some</em> suffix of the text read", would still be maintained. It proves that every reported occurrence is real, but not that every real occurrence is reported. That matches what happened in Problem 6.2.</p>
+  </details>
+</div>
+
+<h2 id="complexity"><span class="num">11</span>Why it is linear</h2>
+
+<p>The search has a <code>while</code> inside a <code>for</code>. The <code>for</code> runs \(n\) times, and one run of the <code>while</code> can fall back many times: with the pattern <code>"aaaab"</code>, after matching <code>aaaa</code> a text character <code>c</code> causes four fallbacks in a row (4 → 3 → 2 → 1 → 0). The reflex estimate is "\(n\) iterations times up to \(m\) fallbacks, so \(O(nm)\)", no better than the naive search. The reflex is wrong, and seeing why needs one more tool.</p>
+
+<div class="callout detour">
+  <span class="label">Detour: amortized analysis</span>
+  <p>How to bound the total cost of a loop whose individual iterations vary wildly. You marked it as shaky, and you have almost certainly used it without the name: it is the reason a monotonic stack is linear.</p>
+</div>
+
+<h3>The idea on a loop you already trust</h3>
+
+<pre><code class="language-python">def days_until_warmer(temperatures: list[int]) -&gt; tuple[list[int], int]:
+    """For each day, how many days until a warmer one (0 if never). Also returns the pop count."""
+    waits = [0] * len(temperatures)
+    waiting_days: list[int] = []  # indexes of days still waiting, temperatures decreasing
+    pop_count = 0
+    for today, temperature in enumerate(temperatures):
+        while waiting_days and temperatures[waiting_days[-1]] &lt; temperature:
+            earlier_day = waiting_days.pop()
+            pop_count += 1
+            waits[earlier_day] = today - earlier_day
+        waiting_days.append(today)
+    return waits, pop_count
+
+
+if __name__ == "__main__":
+    print(days_until_warmer([73, 74, 75, 71, 69, 72, 76, 73]))
+    print(days_until_warmer([80, 79, 78, 77, 76, 75, 74, 90]))</code></pre>
+<pre class="output">([1, 1, 4, 2, 1, 1, 0, 0], 6)
+([7, 6, 5, 4, 3, 2, 1, 0], 7)</pre>
+
+<p>This is the "daily temperatures" problem. It also has a <code>while</code> inside a <code>for</code>, and in the second example the last day pops seven entries in one go. Yet nobody calls it quadratic, and the argument is short: every day is pushed exactly once, and a day can only be popped after it was pushed. So over the whole run, the number of pops is at most the number of pushes, which is \(n\). Some iterations are expensive, but an expensive iteration is only possible because earlier iterations were cheap and left things on the stack.</p>
+
+<p>That is amortized analysis: do not bound each iteration by its worst case and multiply. Instead, find a quantity that every expensive operation uses up and that can only be built up slowly, and bound the total. The general recipe:</p>
+
+<ol>
+  <li>Pick a non-negative quantity (here: the stack height).</li>
+  <li>Show it rises by at most a fixed amount per outer iteration (here: one push).</li>
+  <li>Show every inner-loop step lowers it by at least 1 (here: one pop).</li>
+  <li>Conclude: total inner steps ≤ total rise ≤ number of outer iterations.</li>
+</ol>
+
+<h3>The same argument for KMP</h3>
+
+<p>The quantity is <code>matched_count</code>.</p>
+
+<ul>
+  <li>It is never negative.</li>
+  <li>It <span class="g">rises</span> by at most 1 per text character: the <code>if</code> adds 1, at most once per iteration.</li>
+  <li>Every <span class="b">fallback</span> lowers it by at least 1, because a border is proper: <code>border_length[k - 1] &lt; k</code>.</li>
+</ul>
+
+<p>So the total number of fallbacks over the whole search is at most the total rise, which is at most \(n\). A burst of four fallbacks is only possible after four successful matches built the height up.</p>
+
+<figure class="demo wide" data-demo="chart">
+  <figcaption>Height is <code>matched_count</code>. A <span class="g">green</span> segment is a successful comparison (up one). A <span class="b">lavender</span> vertical is a fallback, and a dashed one is the fallback after a full match (the dot). <b>Notice:</b> the curve can only climb one level per character, so it can never have fallen further than it has climbed: "total height fallen" never exceeds "rises". <b>Try:</b> text <code>aaaaaaaaaaaa</code> with pattern <code>ab</code> to push comparisons close to \(2n\), and text <code>aaaacaaaacaaaac</code> with pattern <code>aaaab</code> to see bursts of four fallbacks.</figcaption>
+</figure>
+
+<h3>Counting comparisons exactly</h3>
+
+<p>Count each comparison of a text character with a pattern character once. (In the code the <code>while</code> condition and the <code>if</code> can test the same pair twice; that is one comparison written two times.) Every comparison has one of three outcomes:</p>
+
+<ul>
+  <li><strong>Success.</strong> It ends the iteration. Call the total \(S\).</li>
+  <li><strong>Failure with <code>matched_count == 0</code>.</strong> It also ends the iteration. Call the total \(Z\).</li>
+  <li><strong>Failure followed by a fallback.</strong> Call the total \(F\).</li>
+</ul>
+
+<p>Every iteration ends in exactly one of the first two ways, so \(S + Z = n\). Each success raises <code>matched_count</code> by 1 and each fallback lowers it by at least 1, so \(F \le S \le n\). Therefore</p>
+
+\[ \text{comparisons} = S + Z + F = n + F \le 2n. \]
+
+<p>The same count for <code>build_border_table</code>, which is the same loop over the pattern, gives at most \(2m\). Altogether:</p>
+
+<div class="callout key">
+  <span class="label">Cost</span>
+  <p>Time \(O(n + m)\): at most \(2m\) comparisons to build the table and at most \(2n\) to search. Extra space \(O(m)\) for the table. The text is read strictly left to right, one character at a time, so it can be a stream.</p>
+</div>
+
+<p>Measured, with a version of the search that counts comparisons and fallbacks:</p>
+
+<pre><code class="language-python">from kmp import build_border_table
+from naive import naive_search
+
+
+def kmp_search_counting(text: str, pattern: str) -&gt; tuple[list[int], int, int]:
+    """Same as kmp_search, but also returns (comparisons, fallbacks). Pattern must be non-empty."""
+    border_length = build_border_table(pattern)
+    match_starts: list[int] = []
+    comparison_count = 0
+    fallback_count = 0
+    matched_count = 0
+    for text_index, text_char in enumerate(text):
+        while True:
+            comparison_count += 1
+            if pattern[matched_count] == text_char:
+                matched_count += 1
+                break
+            if matched_count == 0:
+                break
+            matched_count = border_length[matched_count - 1]
+            fallback_count += 1
+        if matched_count == len(pattern):
+            match_starts.append(text_index - len(pattern) + 1)
+            matched_count = border_length[matched_count - 1]
+    return match_starts, comparison_count, fallback_count
+
+
+if __name__ == "__main__":
+    print(f"{'text':&gt;14} {'pattern':&gt;12} {'naive':&gt;10} {'kmp':&gt;7} {'2n':&gt;7}")
+    for text, pattern in [
+        ("cocococoa", "cocoa"),
+        ("aaaaaaaaaaab", "aaab"),
+        ("a" * 9_999 + "b", "a" * 499 + "b"),
+        ("ab" * 5_000, "ab" * 249 + "aa"),
+    ]:
+        naive_starts, naive_comparisons = naive_search(text, pattern)
+        kmp_starts, kmp_comparisons, _ = kmp_search_counting(text, pattern)
+        assert naive_starts == kmp_starts
+        shown_text = text if len(text) &lt;= 14 else f"&lt;{len(text)} chars&gt;"
+        shown_pattern = pattern if len(pattern) &lt;= 12 else f"&lt;{len(pattern)} chars&gt;"
+        print(f"{shown_text:&gt;14} {shown_pattern:&gt;12} {naive_comparisons:&gt;10} {kmp_comparisons:&gt;7} {2 * len(text):&gt;7}")</code></pre>
+<pre class="output">          text      pattern      naive     kmp      2n
+     cocococoa        cocoa         17      11      18
+  aaaaaaaaaaab         aaab         36      20      24
+ &lt;10000 chars&gt;  &lt;500 chars&gt;    4750500   19500   20000
+ &lt;10000 chars&gt;  &lt;500 chars&gt;    2380250   14751   20000</pre>
+
+<p>The third row is the input that cost the naive search 4,750,500 comparisons. KMP needs 19,500, under the bound of 20,000.</p>
+
+<div class="problem">
+  <div class="head">Problem 11.1 <span class="diff">easy</span></div>
+  <p>Pattern <code>"aaaab"</code>, text <code>"aaaac"</code>. How many comparisons does KMP make at the last text character, and how many in total?</p>
+  <details class="solution"><summary>Solution</summary>
+    <p>The table of <code>"aaaab"</code> is <code>[0, 1, 2, 3, 0]</code>. The four <code>a</code>s cost one comparison each and bring <code>matched_count</code> to 4.</p>
+    <p>At <code>c</code>: compare with <code>pattern[4] = b</code>, fail, fall back to 3; compare with <code>pattern[3] = a</code>, fail, fall back to 2; then 1; then 0; compare with <code>pattern[0] = a</code>, fail at 0, stop. That is 5 comparisons and 4 fallbacks at one character.</p>
+    <p>Total \(4 + 5 = 9 \le 2 \cdot 5\). In the notation above: \(S = 4\), \(Z = 1\), \(F = 4\), and \(n + F = 9\).</p>
+  </details>
+</div>
+
+<div class="problem">
+  <div class="head">Problem 11.2 <span class="diff medium">medium</span></div>
+  <p>Find a family of inputs on which the search makes exactly \(2n - 1\) comparisons, showing that the bound \(2n\) cannot be improved by much.</p>
+  <details class="hint"><summary>Hint</summary><p>You want almost every character to cause one success and one fallback. A fallback needs height, and one success gives height 1.</p></details>
+  <details class="solution"><summary>Solution</summary>
+    <p>Pattern <code>"ab"</code>, text <code>"aaa…a"</code> (\(n\) copies of <code>a</code>). The table is <code>[0, 0]</code>.</p>
+    <p>The first <code>a</code>: one comparison, success, <code>matched_count = 1</code>. Every later <code>a</code>: compare with <code>pattern[1] = b</code>, fail, fall back to 0; compare with <code>pattern[0] = a</code>, success, back to 1. Two comparisons each.</p>
+    <p>Total \(1 + 2(n - 1) = 2n - 1\). For \(n = 10\) the counting code gives 19. Here \(S = n\), \(Z = 0\), \(F = n - 1\).</p>
+  </details>
+</div>
+
+<div class="problem">
+  <div class="head">Problem 11.3 <span class="diff medium">medium</span></div>
+  <p>The naive search on <code>"aaaa…ab"</code> also has "cheap" and "expensive" starts. Why can the amortized recipe not be used to prove <em>it</em> linear? Which step of the recipe fails?</p>
+  <details class="solution"><summary>Solution</summary>
+    <p>Take the same quantity, the number of matched characters. In the naive search, a mismatch resets it to 0 <em>and moves the text position back</em> by <code>matched_count - 1</code>. The quantity then rises again by re-reading the same text characters. So "it rises at most once per text character" is false: step 2 of the recipe fails, because there is no fixed supply of rises. The same character can pay for a rise up to \(m\) times.</p>
+    <p>KMP's rises are tied to text characters that are consumed for good, which is where the bound \(S \le n\) comes from. Never moving back in the text is the property that makes the accounting work.</p>
+  </details>
+</div>
+
+<h2 id="pitfalls"><span class="num">12</span>Pitfalls</h2>
+
+<p>KMP is fifteen lines and nearly every one of them can be subtly wrong. These are the ways it usually breaks, each with what the breakage looks like.</p>
+
+<table class="plain">
+  <tr><th>Mistake</th><th>Symptom</th></tr>
+  <tr><td>Fallback written as <code>border_length[matched_count]</code> instead of <code>[matched_count - 1]</code></td><td>Missed occurrences (<code>"coconut"</code> in <code>"cococonut"</code>) or an infinite loop (<code>"aab"</code> in <code>"ab"</code>). See Problem 8.3.</td></tr>
+  <tr><td><code>if</code> instead of <code>while</code> for the fallback</td><td>After one fallback the code assumes a match state that was never checked. For <code>"bbb"</code> in <code>"bbabb"</code> it reports an occurrence at index 2, where the text reads <code>abb</code>. False positives are worse than misses, because nothing looks wrong.</td></tr>
+  <tr><td>After a full match, <code>matched_count = 0</code></td><td>Overlapping occurrences are lost: <code>"aaa"</code> in <code>"aaaaaa"</code> gives <code>[0, 3]</code> instead of <code>[0, 1, 2, 3]</code>.</td></tr>
+  <tr><td>After a full match, no fallback at all</td><td><code>pattern[matched_count]</code> with <code>matched_count == len(pattern)</code>: an <code>IndexError</code> on the next character.</td></tr>
+  <tr><td>Table loop starting at index 0</td><td>Every entry is one too large (the improper border), then infinite loops. See Problem 9.2.</td></tr>
+  <tr><td>Empty pattern not handled</td><td><code>pattern[0]</code> raises. Decide what you want (Python's convention is that the empty string occurs at every index, including <code>len(text)</code>) and return early.</td></tr>
+  <tr><td>Moving the text index back "just in case" after a fallback</td><td>Still correct, but the linear bound is gone, and so is the ability to read from a stream.</td></tr>
+  <tr><td>Mixing the two table conventions</td><td>Some sources index the table by prefix <em>length</em> (so entry \(k\) describes <code>pattern[:k]</code> and the table has \(m + 1\) entries, the first often written −1). Code copied half from one convention and half from the other is the off-by-one above in disguise.</td></tr>
+</table>
+
+<p>One more, of a different kind: assuming KMP is what you should reach for in practice. It is the right tool when you need the worst-case guarantee, streaming, or the border table itself. For everyday substring search, <code>text.find(pattern)</code> is faster. Section 18 says why.</p>
+
+<div class="problem">
+  <div class="head">Problem 12.1 <span class="diff medium">medium</span></div>
+  <p>Trace the <code>if</code>-instead-of-<code>while</code> bug on pattern <code>"bbb"</code> (table <code>[0, 1, 2]</code>) and text <code>"bbabb"</code>, and say exactly which state is wrong.</p>
+  <details class="solution"><summary>Solution</summary>
+    <p>After <code>bb</code>: <code>matched_count = 2</code>. Next character <code>a</code>: <code>pattern[2] = b</code> differs, fall back once to <code>border_length[1] = 1</code>. The correct code would test again, find <code>pattern[1] = b</code> differs from <code>a</code>, fall back to 0, find <code>pattern[0]</code> differs too, and end with 0.</p>
+    <p>The buggy code falls back only once. Its <code>if</code> then tests <code>pattern[1] == "a"</code>, which is false, so <code>matched_count</code> stays 1. That state claims "the text read so far ends with <code>b</code>", but it ends with <code>a</code>. The invariant is broken.</p>
+    <p>The remaining <code>bb</code> then lifts the count from 1 to 3, and an occurrence is reported at index 4 − 3 + 1 = 2, where the text reads <code>abb</code>.</p>
+  </details>
+</div>
+
+<h2 id="applications"><span class="num">13</span>What else the table is good for</h2>
+
+<p>In contest problems and on LeetCode the search is the less common use of KMP. The border table on its own answers a surprising number of questions about a single string. All of the functions below are in one file, shown and run at the end of the section.</p>
+
+<h3>All borders, not only the longest</h3>
+
+<p>By the borders-of-borders fact, following the chain from the last entry lists every border length of the whole word, longest first. For <code>"abracadabra"</code>: 4, then 1. This is LeetCode 1392 ("Longest Happy Prefix") if you stop at the first step.</p>
+
+<h3>The shortest period</h3>
+
+<p>A <strong>period</strong> of a word is a distance \(p \ge 1\) such that the word looks the same when moved \(p\) steps to the right: <code>word[i] == word[i + p]</code> wherever both indexes exist. <code>"alfalfa"</code> has period 3: it is <code>alf</code> repeated, cut off after the seventh letter.</p>
+
+<figure class="fig wide">
+  <div data-fig="period" data-word="alfalfa"></div>
+  <figcaption><code>"alfalfa"</code> against itself moved right by 3. The overlapping columns agree. The overlap, <code>alfa</code>, is the last 4 characters of the top copy and the first 4 of the bottom copy: a border of length 4.</figcaption>
+</figure>
+
+<p>The picture is the demo of section 6 again, and the conclusion is the same: the word agrees with itself moved by \(p\) exactly when its first \(n - p\) characters equal its last \(n - p\) characters.</p>
+
+<div class="callout key">
+  <span class="label">Periods are borders</span>
+  <p>A word of length \(n\) has period \(p\) if and only if it has a border of length \(n - p\). The longest border gives the shortest period: \(p_{\min} = n - \) <code>border_length[n - 1]</code>.</p>
+</div>
+
+<h3>Is the word a block repeated a whole number of times?</h3>
+
+<p>LeetCode 459 asks whether a word is some shorter block written two or more times, like <code>"abcabcabc"</code>. With the shortest period \(p\) in hand, the answer is: yes exactly when \(p &lt; n\) and \(p\) divides \(n\).</p>
+
+<p>One direction is direct. If \(p\) divides \(n\), then <code>word[i] == word[i + p]</code> for all \(i\) says each block of \(p\) characters equals the next, and the blocks tile the word exactly. The other direction, that a word which is <em>some</em> block repeated must have its <em>shortest</em> period dividing \(n\), needs a classical result, the Fine–Wilf theorem (1965): if a word has periods \(p\) and \(q\) and length at least \(p + q - \gcd(p, q)\), it also has period \(\gcd(p, q)\). If the word is a block of length \(q\) repeated at least twice, then \(q \le n/2\) and \(p \le q\), so \(p + q \le n\) and \(\gcd(p, q)\) is a period. But \(p\) is the smallest period, so \(\gcd(p, q) = p\), meaning \(p\) divides \(q\), which divides \(n\).</p>
+
+<h3>Search with nothing but the table</h3>
+
+<p>Glue the pattern, a separator character that occurs in neither string, and the text together: <code>pattern + "#" + text</code>. Build the border table of the whole thing. No border can cross the separator, so no entry exceeds \(m\). An entry in the text part equals \(m\) exactly where the first \(m\) characters of the glued string, the pattern, end at that position. This is a full pattern search with one function and no separate search loop, at the price of \(O(n + m)\) memory instead of \(O(m)\).</p>
+
+<h3>The shortest palindrome by adding letters in front</h3>
+
+<p>LeetCode 214. To turn <code>word</code> into a palindrome by prepending as few letters as possible, find its longest prefix that is already a palindrome; the rest, reversed, goes in front. A prefix of <code>word</code> is a palindrome exactly when it equals a suffix of the reversed word. So build the table of <code>word + "#" + reversed_word</code>: its last entry is the longest prefix of <code>word</code> that is a suffix of the reversal.</p>
+
+<h3>How often does each prefix occur?</h3>
+
+<p>For every length, count the occurrences of <code>word[:length]</code> inside <code>word</code>. Entry <code>border_length[end_index]</code> says the longest prefix ending at <code>end_index</code>; the shorter prefixes ending there are its borders. So count each entry once, then push the counts down the chain from long to short, and finally add one for each prefix's own occurrence at the start.</p>
+
+<pre><code class="language-python">from kmp import build_border_table
+
+
+def all_border_lengths(word: str) -&gt; list[int]:
+    """Every border length of word, longest first, by walking the border chain."""
+    border_length = build_border_table(word)
+    lengths: list[int] = []
+    length = border_length[-1] if word else 0
+    while length &gt; 0:
+        lengths.append(length)
+        length = border_length[length - 1]
+    return lengths
+
+
+def shortest_period(word: str) -&gt; int:
+    """Smallest p &gt; 0 with word[i] == word[i + p] wherever both indices exist."""
+    return len(word) - build_border_table(word)[-1]
+
+
+def is_repeated_block(word: str) -&gt; bool:
+    """True if word is some shorter block written two or more times (LeetCode 459)."""
+    period = shortest_period(word)
+    return period &lt; len(word) and len(word) % period == 0
+
+
+def shortest_palindrome(word: str) -&gt; str:
+    """Shortest palindrome obtainable by adding characters in front of word (LeetCode 214)."""
+    if not word:
+        return word
+    reversed_word = word[::-1]
+    palindromic_prefix_length = build_border_table(word + "#" + reversed_word)[-1]
+    return reversed_word[: len(word) - palindromic_prefix_length] + word
+
+
+def search_by_concatenation(text: str, pattern: str) -&gt; list[int]:
+    """Pattern search using nothing but the border table of pattern + '#' + text."""
+    border_length = build_border_table(pattern + "#" + text)
+    return [
+        joined_index - 2 * len(pattern)
+        for joined_index in range(len(pattern) + 1, len(border_length))
+        if border_length[joined_index] == len(pattern)
+    ]
+
+
+def prefix_occurrence_counts(word: str) -&gt; list[int]:
+    """counts[length] = how many times word[:length] occurs in word as a substring."""
+    border_length = build_border_table(word)
+    counts = [0] * (len(word) + 1)
+    for length in border_length:
+        counts[length] += 1
+    for length in range(len(word), 0, -1):
+        counts[border_length[length - 1]] += counts[length]
+    for length in range(1, len(word) + 1):
+        counts[length] += 1  # the prefix itself, sitting at the start
+    return counts
+
+
+if __name__ == "__main__":
+    print("all borders of abracadabra:", all_border_lengths("abracadabra"))
+    for word in ["alfalfa", "abcabcabc", "abracadabra", "aaaa", "cocoa"]:
+        period = shortest_period(word)
+        print(f"{word:12} period={period} block={word[:period]!r:12} repeated={is_repeated_block(word)}")
+    print("shortest palindrome:", shortest_palindrome("aacecaaa"), shortest_palindrome("abcd"))
+    print("search by concatenation:", search_by_concatenation("cocococoa", "coco"))
+    print("prefix counts of 'cococo':", prefix_occurrence_counts("cococo")[1:])</code></pre>
+<pre class="output widecode">all borders of abracadabra: [4, 1]
+alfalfa      period=3 block='alf'        repeated=False
+abcabcabc    period=3 block='abc'        repeated=True
+abracadabra  period=7 block='abracad'    repeated=False
+aaaa         period=1 block='a'          repeated=True
+cocoa        period=5 block='cocoa'      repeated=False
+shortest palindrome: aaacecaaa dcbabcd
+search by concatenation: [0, 2, 4]
+prefix counts of 'cococo': [3, 3, 2, 2, 1, 1]</pre>
+
+<p>Every function here was compared with a brute-force version on 40,000 random strings.</p>
+
+<div class="problem">
+  <div class="head">Problem 13.1 <span class="diff">easy</span></div>
+  <p>The table of <code>"abaabaab"</code> is <code>[0, 0, 1, 1, 2, 3, 4, 5]</code>. Give its shortest period, say whether it is a repeated block, and list all its borders.</p>
+  <details class="solution"><summary>Solution</summary>
+    <p>\(n = 8\), last entry 5, so the shortest period is \(8 - 5 = 3\) (the block <code>aba</code>).</p>
+    <p>3 does not divide 8, so it is not a whole number of repetitions: it is <code>aba aba ab</code>, two and two-thirds blocks.</p>
+    <p>Borders: follow the chain. Length 5 (<code>abaab</code>). Then <code>border_length[4] = 2</code> (<code>ab</code>). Then <code>border_length[1] = 0</code>. Borders: <code>abaab</code> and <code>ab</code>. The lengths 5 and 2 differ by the period, 3, as in Problem 9.3.</p>
+  </details>
+</div>
+
+<div class="problem">
+  <div class="head">Problem 13.2 <span class="diff medium">medium</span></div>
+  <p>In the concatenation trick, drop the separator and build the table of <code>pattern + text</code> for pattern <code>"aa"</code> and text <code>"aaa"</code>. What goes wrong, and does "report where the entry is ≥ \(m\)" fix it?</p>
+  <details class="solution"><summary>Solution</summary>
+    <p>The table of <code>"aaaaa"</code> is <code>[0, 1, 2, 3, 4]</code>. With the separator, the table of <code>"aa#aaa"</code> is <code>[0, 1, 0, 1, 2, 2]</code>, and the entries equal to 2 in the text part mark the occurrences ending at text indexes 1 and 2.</p>
+    <p>Without it, borders run across the join and entries grow past \(m\): they describe prefixes of the glued string that include text characters, which is not what we are asking about. Testing "≥ \(m\)" does not repair this in general. An entry \(\ge m\) says that some prefix of <code>pattern + text</code> of that length ends here, and so the pattern does <em>start</em> that prefix, but the prefix may begin inside the pattern part of the glued string, so the reported text position can be wrong or negative. In this example entry 2 at glued index 2 would be reported as an occurrence ending at text index 0, which is impossible for a pattern of length 2.</p>
+    <p>The separator is what guarantees every border lies entirely inside the pattern. If no safe separator character exists (arbitrary bytes), run the real search loop instead; it needs none.</p>
+  </details>
+</div>
+
+<div class="problem">
+  <div class="head">Problem 13.3 <span class="diff medium">medium</span></div>
+  <p>LeetCode 796: decide whether <code>goal</code> is a rotation of <code>word</code> (for example <code>"cdeab"</code> is a rotation of <code>"abcde"</code>). Reduce it to one pattern search and state the complexity.</p>
+  <details class="solution"><summary>Solution</summary>
+    <p>If the lengths differ, the answer is no. Otherwise, every rotation of <code>word</code> appears as a substring of <code>word + word</code>, and every substring of <code>word + word</code> of length <code>len(word)</code> is a rotation. So the answer is whether <code>kmp_search(word + word, goal)</code> is non-empty. For the example, <code>"cdeab"</code> occurs in <code>"abcdeabcde"</code> at index 2.</p>
+    <p>Time and space \(O(n)\), against \(O(n^2)\) for trying all rotations. The length check is not optional: without it <code>"ab"</code> would count as a rotation of <code>"abc"</code>.</p>
+  </details>
+</div>
+
+<h2 id="summary"><span class="num">14</span>Summary</h2>
+
+<ol>
+  <li><strong>A successful comparison is knowledge about the text.</strong> After \(k\) matched characters, the last \(k\) text characters are <code>pattern[:k]</code>. Everything the naive search re-reads is already determined by the pattern.</li>
+  <li><strong>Shifts are borders.</strong> Sliding the pattern by \(s\) can work only if <code>pattern[:k]</code> has a border of length \(k - s\). Take the longest border: it is the smallest shift that is not provably dead, and its characters need no re-comparison.</li>
+  <li><strong>Borders of borders.</strong> All borders of a string are its longest border, that border's longest border, and so on. This is what lets the fallback repeat, and what lets the table be built by running the same loop on the pattern itself.</li>
+  <li><strong>The invariant.</strong> <code>matched_count</code> is always the longest proper pattern prefix that ends the text read so far. An occurrence ends here exactly when it reaches \(m\).</li>
+  <li><strong>The accounting.</strong> <code>matched_count</code> rises at most once per character and every fallback lowers it, so fallbacks total at most \(n\) and comparisons at most \(2n\). Time \(O(n + m)\), space \(O(m)\), and the text is never re-read.</li>
+</ol>
+
+<div class="callout">
+  <span class="label">The lines to remember</span>
+  <p>Fallback, in both loops: <code>count = border_length[count - 1]</code>, inside a <code>while count &gt; 0 and mismatch</code>.<br>
+  Table loop starts at index 1; search loop starts at index 0.<br>
+  After a full match: record <code>text_index - m + 1</code>, then fall back once more.<br>
+  Shortest period: <code>n - border_length[n - 1]</code>.</p>
+</div>
+
+<h2 id="quiz"><span class="num">15</span>Quiz</h2>
+
+<p>A mixed review of the whole page. Answer from memory first.</p>
+
+<div class="problem">
+  <div class="head">Q1 <span class="diff">easy</span></div>
+  <p>Write the border table of <code>"aabaa"</code>.</p>
+  <details class="solution"><summary>Solution</summary>
+    <p><code>a</code> → 0. <code>aa</code> → 1. <code>aab</code> → 0. <code>aaba</code> → 1 (<code>a</code>). <code>aabaa</code> → 2 (<code>aa</code>). Table <code>[0, 1, 0, 1, 2]</code>.</p>
+  </details>
+</div>
+
+<div class="problem">
+  <div class="head">Q2 <span class="diff">easy</span></div>
+  <p>The pattern begins <code>"abcabca…"</code>. After matching those seven characters, the eighth mismatches. What is the new <code>matched_count</code>, and how far does the pattern slide?</p>
+  <details class="solution"><summary>Solution</summary>
+    <p>The longest border of <code>"abcabca"</code> is <code>"abca"</code> (first four = last four, overlapping in the middle <code>a</code>). New count 4, slide \(7 - 4 = 3\). The frequent wrong answer is 1 (the border <code>"a"</code>), from not considering overlapping borders.</p>
+  </details>
+</div>
+
+<div class="problem">
+  <div class="head">Q3 <span class="diff">easy</span></div>
+  <p>True or false: <code>border_length[i]</code> can be larger than <code>i</code>.</p>
+  <details class="solution"><summary>Solution</summary>
+    <p>False. The prefix ending at <code>i</code> has \(i + 1\) characters and a border is proper, so its length is at most \(i\). The table of <code>"aaaa"</code>, <code>[0, 1, 2, 3]</code>, reaches that maximum everywhere.</p>
+  </details>
+</div>
+
+<div class="problem">
+  <div class="head">Q4 <span class="diff">easy</span></div>
+  <p>Which of these cannot be the border table of any string: <code>[0, 0, 1, 2, 3]</code>, <code>[0, 1, 0, 2]</code>, <code>[0, 0, 0, 0]</code>?</p>
+  <details class="solution"><summary>Solution</summary>
+    <p><code>[0, 1, 0, 2]</code> is impossible: an entry can exceed the previous one by at most 1 (Problem 7.2), and here it jumps from 0 to 2. The first is the table of <code>"ababa"</code>, the last of <code>"abcd"</code>.</p>
+  </details>
+</div>
+
+<div class="problem">
+  <div class="head">Q5 <span class="diff medium">medium</span></div>
+  <p>Describe all strings whose border table is entirely zeros.</p>
+  <details class="solution"><summary>Solution</summary>
+    <p>Exactly the strings whose first character never appears again. If the first character reappears at index \(i &gt; 0\), the prefix ending at \(i\) starts and ends with that character, so it has a border of length at least 1. If it never reappears, no prefix can have a non-empty border, because any non-empty border starts with the first character and would need a second copy of it later.</p>
+    <p>So <code>"abcd"</code> and <code>"abbb"</code> both give <code>[0, 0, 0, 0]</code>: the table does not determine the string.</p>
+  </details>
+</div>
+
+<div class="problem">
+  <div class="head">Q6 <span class="diff medium">medium</span></div>
+  <p>A text of 1,000,000 characters and a pattern of 1,000. Give an upper bound on the character comparisons KMP makes in total, and the corresponding worst case of the naive search.</p>
+  <details class="solution"><summary>Solution</summary>
+    <p>KMP: at most \(2m = 2{,}000\) for the table plus \(2n = 2{,}000{,}000\) for the search: 2,002,000.</p>
+    <p>Naive: \((n - m + 1)\cdot m = 999{,}001 \times 1{,}000 = 999{,}001{,}000\), about five hundred times more.</p>
+  </details>
+</div>
+
+<div class="problem">
+  <div class="head">Q7 <span class="diff medium">medium</span></div>
+  <p>The pattern is <code>"cocoa"</code> and the text read so far is <code>"xcococ"</code>. Using only the invariant, what is <code>matched_count</code>?</p>
+  <details class="solution"><summary>Solution</summary>
+    <p>The longest proper prefix of <code>"cocoa"</code> that ends <code>"xcococ"</code>. Candidates: <code>coco</code> (text ends <code>…ococ</code>, no), <code>coc</code> (text ends <code>…coc</code>, yes). So 3.</p>
+  </details>
+</div>
+
+<div class="problem">
+  <div class="head">Q8 <span class="diff medium">medium</span></div>
+  <p>The table of a 12-character string ends in 8. What is the shortest period? Is the string a repeated block? What other border lengths must it have?</p>
+  <details class="solution"><summary>Solution</summary>
+    <p>Shortest period \(12 - 8 = 4\). Since 4 divides 12 and \(4 &lt; 12\), the string is a 4-character block written three times.</p>
+    <p>A string with period 4 and length 12 also agrees with itself moved by 8, so it has a border of length \(12 - 8 = 4\): the block itself. Below that, the chain continues with the borders of the block: none for a block like <code>abcd</code>, one more for <code>abca</code>. So 8 and 4 for certain, and possibly shorter ones.</p>
+  </details>
+</div>
+
+<div class="problem">
+  <div class="head">Q9 <span class="diff hard">hard</span></div>
+  <p>Explain in two sentences, to someone who knows the code but not the theory, why the inner <code>while</code> does not make KMP quadratic.</p>
+  <details class="solution"><summary>Solution</summary>
+    <p>Each pass through the <code>while</code> lowers <code>matched_count</code> by at least one, and <code>matched_count</code> is raised only by the <code>if</code>, at most once per text character, and never goes below zero. So over the entire run the <code>while</code> body executes at most as many times as the <code>if</code> succeeds, which is at most \(n\).</p>
+  </details>
+</div>
+
+<h2 id="homework"><span class="num">16</span>Homework</h2>
+
+<p>Larger problems, most of which want code. None has a solution here; the tests are yours to write.</p>
+
+<ol>
+  <li><strong>A streaming matcher.</strong> Write a class <code>StreamMatcher(pattern)</code> with a method <code>feed(chunk: str) -&gt; list[int]</code> that returns the absolute start positions of occurrences completed inside that chunk. It must keep \(O(m)\) state and never store earlier chunks. Test it by splitting a text at every possible position and checking that the combined output never changes.</li>
+  <li><strong>Measure it.</strong> Count comparisons for naive search and KMP on (a) random text over a 26-letter alphabet, (b) random text over <code>{a, b}</code>, (c) the adversarial <code>a…ab</code> family. Then time your KMP against <code>str.find</code> on each. Explain what you see for (a): the naive count is barely above \(n\), and <code>str.find</code> beats your Python KMP by orders of magnitude.</li>
+  <li><strong>LeetCode, in rising difficulty.</strong> 28 (Find the Index of the First Occurrence), 1392 (Longest Happy Prefix), 459 (Repeated Substring Pattern), 796 (Rotate String), 686 (Repeated String Match), 214 (Shortest Palindrome), 3008 (Find Beautiful Indices in the Given Array II), 3036 (Number of Subarrays That Match a Pattern II; the "characters" are not characters), 1397 (Find All Good Strings; needs the automaton of section 17 inside a digit DP).</li>
+  <li><strong>Codeforces 126B, "Password".</strong> Find the longest string that is a prefix of the input, a suffix of it, and also occurs somewhere strictly inside. You need the border chain and one extra pass over the table.</li>
+  <li><strong>The strong failure function.</strong> Implement the refinement described in section 17 and measure the longest run of consecutive fallbacks, with and without it, on Fibonacci strings (\(f_1 = \texttt{b}\), \(f_2 = \texttt{a}\), \(f_k = f_{k-1} f_{k-2}\)) and on <code>a…ab</code>.</li>
+  <li><strong>From one pattern to many.</strong> Put several patterns in a trie and give every trie node a fallback link to the node of its longest proper suffix that is also in the trie. Compute the links breadth-first with the same "try the fallback's child, else fall back again" loop. You have reinvented Aho–Corasick.</li>
+  <li><strong>Prefix function and Z-function.</strong> The Z-function stores, for each index, the length of the longest substring starting there that matches a prefix. Write linear-time conversions in both directions and test them against each other.</li>
+</ol>
+
+<h2 id="extensions"><span class="num">17</span>Extensions: KMP as a machine</h2>
+
+<div class="callout detour">
+  <span class="label">Detour: finite automata</span>
+  <p>You marked automata as shaky. They are not needed for anything above, but the automaton is the most compact way to think about what KMP <em>is</em>, and it is the form in which the idea generalises. Here is the minimum, from nothing.</p>
+</div>
+
+<p>A <strong>deterministic finite automaton</strong> (DFA) is a machine with a finite set of <strong>states</strong>, one of which is the start state. It reads its input one character at a time. A fixed table, the <strong>transition function</strong>, says for every state and every character which state comes next. Some states are marked <strong>accepting</strong>. That is the whole definition: no memory except "which state am I in", no going back, one table lookup per character.</p>
+
+<p>The diagrams of section 7 were almost automata. The nodes are states: state \(k\) means "<code>matched_count</code> is \(k\)". The yellow arrows are transitions. What was missing is that a DFA must have an answer for <em>every</em> character in <em>every</em> state, without an inner loop. The lavender arcs were not transitions; they were instructions to "go there and try again".</p>
+
+<p>We can remove the "try again" by doing it ahead of time. For each state \(k\) and each character, run the fallback loop once, in advance, and write down where it ends:</p>
+
+<ul>
+  <li>if the character is <code>pattern[k]</code>, go to \(k + 1\);</li>
+  <li>otherwise, if \(k = 0\), stay at 0;</li>
+  <li>otherwise, do whatever the state <code>border_length[k - 1]</code> does on that character. That state is smaller, so its row is already filled in.</li>
+</ul>
+
+<pre><code class="language-python">from kmp import build_border_table
+
+
+def build_automaton(pattern: str, alphabet: str) -&gt; list[dict[str, int]]:
+    """next_state[matched_count][char] = matched_count after reading char."""
+    border_length = build_border_table(pattern)
+    next_state: list[dict[str, int]] = []
+    for matched_count in range(len(pattern) + 1):
+        row: dict[str, int] = {}
+        for char in alphabet:
+            if matched_count &lt; len(pattern) and pattern[matched_count] == char:
+                row[char] = matched_count + 1
+            elif matched_count == 0:
+                row[char] = 0
+            else:
+                row[char] = next_state[border_length[matched_count - 1]][char]
+        next_state.append(row)
+    return next_state
+
+
+def automaton_search(text: str, pattern: str, alphabet: str) -&gt; list[int]:
+    next_state = build_automaton(pattern, alphabet)
+    match_starts: list[int] = []
+    state = 0
+    for text_index, text_char in enumerate(text):
+        state = next_state[state][text_char]
+        if state == len(pattern):
+            match_starts.append(text_index - len(pattern) + 1)
+    return match_starts
+
+
+if __name__ == "__main__":
+    for state, row in enumerate(build_automaton("cocoa", "aco")):
+        print(state, row)
+    print(automaton_search("cocococoa", "cocoa", "aco"))</code></pre>
+<pre class="output">0 {'a': 0, 'c': 1, 'o': 0}
+1 {'a': 0, 'c': 1, 'o': 2}
+2 {'a': 0, 'c': 3, 'o': 0}
+3 {'a': 0, 'c': 1, 'o': 4}
+4 {'a': 5, 'c': 3, 'o': 0}
+5 {'a': 0, 'c': 1, 'o': 0}
+[4]</pre>
+
+<figure class="fig wide">
+  <div data-fig="chain" data-pattern="cocoa" data-mode="dfa" data-alphabet="aco"></div>
+  <figcaption>The automaton for <code>"cocoa"</code> over the alphabet <code>{a, c, o}</code>. Yellow arrows advance. Each lavender arrow is now a real transition, labelled with the character that causes it. Every transition not drawn leads to state 0. State 5, double-ringed, is accepting: being there means an occurrence has just ended. Compare state 4 on <code>c</code> going to 3 with the walkthrough of section 8: fallback 4 → 2, then match → 3, folded into one step.</figcaption>
+</figure>
+
+<p>The search is then a single lookup per character, with no inner loop at all. The price is the table: one entry per state per character of the alphabet, \(O(m \cdot |\Sigma|)\) time and space, against \(O(m)\) for the border table. For bytes that is 256 entries per state; for Unicode it is out of the question, which is why the border-table form is the usual one.</p>
+
+<div class="problem">
+  <div class="head">Problem 17.1 <span class="diff medium">medium</span></div>
+  <p>Using the printed transition table, run the automaton on <code>"cocococoa"</code> and list the states it passes through. Compare with the <code>matched_count</code> column of the trace in section 8.</p>
+  <details class="solution"><summary>Solution</summary>
+    <p>Start in 0. <code>c</code> → 1, <code>o</code> → 2, <code>c</code> → 3, <code>o</code> → 4, <code>c</code> → 3 (row 4, column <code>c</code>), <code>o</code> → 4, <code>c</code> → 3, <code>o</code> → 4, <code>a</code> → 5.</p>
+    <p>States: 1, 2, 3, 4, 3, 4, 3, 4, 5. That is the "matched_count after" column exactly. The automaton and the loop compute the same function; the automaton has merely paid for the fallbacks in advance.</p>
+  </details>
+</div>
+
+<h3>Knuth's refinement</h3>
+
+<p>Strictly speaking, what this page has built is the algorithm of Morris and Pratt. Knuth's contribution to the published version includes a sharper table. Look at <code>"cocoa"</code> in state 3 (<code>coc</code> matched, next expected character <code>o</code>). On a mismatch we fall back to state 1, which expects <code>pattern[1]</code>: also <code>o</code>. But we just learned that the text character is <em>not</em> <code>o</code>. That fallback is certain to fail again.</p>
+
+<p>The refinement: when <code>pattern[border]</code> equals <code>pattern[k]</code>, skip that border and link directly to wherever <em>it</em> would fall back. This "strong" failure function does not change the \(O(n + m)\) total, but it bounds the worst delay at a single text character: Knuth, Morris and Pratt show that the number of consecutive fallbacks is then at most about \(\log_\varphi m\), where \(\varphi\) is the golden ratio, instead of up to \(m\). Homework 5 asks you to see that bound on Fibonacci strings, which are the worst case.</p>
+
+<h3>Where the idea goes next</h3>
+
+<ul>
+  <li><strong>Aho–Corasick</strong> (1975) searches for many patterns at once. The chain of states becomes a trie, and each node gets a failure link defined the same way. It is what <code>fgrep</code> was built on.</li>
+  <li><strong>Counting and DP over strings.</strong> "How many strings of length \(n\) avoid a given substring?" becomes a walk on the automaton's states; LeetCode 1397 is this.</li>
+  <li><strong>Sequences that are not text.</strong> Nothing above used anything about characters except equality. KMP works on lists of integers, tokens, or the differences between neighbouring array elements (LeetCode 3036).</li>
+</ul>
+
+<h2 id="alternatives"><span class="num">18</span>Alternatives</h2>
+
+<p>KMP was the first widely known linear-time matcher, and it is rarely the fastest in practice. A brief map, since you asked to keep this out of scope:</p>
+
+<table class="plain">
+  <tr><th>Method</th><th>Idea</th><th>When it wins</th></tr>
+  <tr><td>Naive, with a fast first-character scan</td><td>Use a vectorised <code>memchr</code> to jump to candidates</td><td>Short patterns in ordinary text; hard to beat, quadratic only on adversarial input</td></tr>
+  <tr><td>Z-function</td><td>For each index, the longest match with the prefix</td><td>Same power and cost as the border table; many find it easier to reason about</td></tr>
+  <tr><td>Rabin–Karp</td><td>Compare rolling hashes of windows</td><td>Many patterns of one length, 2D matching, plagiarism detection; expected linear</td></tr>
+  <tr><td>Boyer–Moore and Horspool</td><td>Compare from the pattern's right end and skip ahead</td><td>Long patterns over large alphabets: it reads only a fraction of the text</td></tr>
+  <tr><td>Two-Way (Crochemore–Perrin)</td><td>Split the pattern at a "critical" position; linear time, constant extra space</td><td>Library implementations: glibc's <code>memmem</code> uses it, and CPython's <code>str.find</code> switches to a variant of it for long inputs</td></tr>
+  <tr><td>Suffix array or suffix automaton</td><td>Preprocess the <em>text</em></td><td>One fixed text, many different patterns</td></tr>
+</table>
+
+<p>KMP keeps its place for three reasons: the guarantee is unconditional, it works on a stream without a buffer, and the border table answers structural questions (periods, borders, repetitions) that the faster matchers do not.</p>
+
+<h2 id="history"><span class="num">19</span>History</h2>
+
+<p>The algorithm was found more than once. James H. Morris needed a search for a text editor he was writing on a CDC 6400 around 1970 and wanted to avoid backing up in the input; he and Vaughan Pratt wrote it up in a 1970 Berkeley technical report, <em>A linear pattern-matching algorithm</em>. Independently, Donald Knuth arrived at the same method from theory: Stephen Cook had proved that any language recognisable by a two-way deterministic pushdown automaton can be recognised in linear time on an ordinary computer, which implied that a linear-time pattern matcher had to exist. Knuth worked through Cook's construction for this particular problem and extracted the algorithm; Pratt then showed how to make its running time independent of the alphabet size, and learned that Morris already had the method.</p>
+
+<p>The three published together: <em>Fast Pattern Matching in Strings</em>, SIAM Journal on Computing 6(2), June 1977. The paper is unusually candid about this history, and also contains an early analysis of the then-new Boyer–Moore algorithm.</p>
+
+<p>A similar linear-time method had been found even earlier, in 1969, by Yuri Matiyasevich in the Soviet Union, formulated for a Turing machine with a two-dimensional tape and a binary alphabet.</p>
+
+<h2 id="reading"><span class="num">20</span>Further reading</h2>
+
+<ul>
+  <li><a href="https://doi.org/10.1137/0206024">Knuth, Morris, Pratt: <em>Fast Pattern Matching in Strings</em> (1977)</a>. The primary source. Very readable; section 7 is the historical account, and the \(\log_\varphi m\) bound on delay is here.</li>
+  <li><a href="https://cp-algorithms.com/string/prefix-function.html">cp-algorithms: Prefix function</a>. The best compact reference for the table and its applications (counting prefixes, compression, the automaton), in the same 0-indexed convention as this page.</li>
+  <li><a href="https://algs4.cs.princeton.edu/53substring/">Sedgewick and Wayne, <em>Algorithms</em>, section 5.3</a>. Presents KMP directly as a DFA, the view of section 17, alongside Boyer–Moore and Rabin–Karp.</li>
+  <li>Cormen, Leiserson, Rivest, Stein: <em>Introduction to Algorithms</em>, the string matching chapter. The fully formal treatment of the prefix function, with the amortized argument stated as a potential function.</li>
+  <li>Gusfield: <em>Algorithms on Strings, Trees, and Sequences</em> (1997). Builds everything on the Z-function instead, which is worth seeing as the alternative foundation.</li>
+  <li><a href="https://www-igm.univ-mlv.fr/~lecroq/string/">Charras and Lecroq: <em>Exact String Matching Algorithms</em></a>. A catalogue of some thirty matchers with code and worked examples, including both Morris–Pratt and Knuth–Morris–Pratt as separate entries.</li>
+  <li><a href="https://github.com/python/cpython/blob/main/Objects/stringlib/stringlib_find_two_way_notes.txt">CPython: notes on the Two-Way algorithm</a>. What a production <code>str.find</code> does and why it is not KMP.</li>
+  <li>Fine and Wilf: <em>Uniqueness theorems for periodic functions</em>, Proceedings of the AMS 16 (1965). The periodicity lemma used in section 13.</li>
+</ul>
+
+</main>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.18.10/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.18.10/dist/contrib/auto-render.min.js"></script>
+<script>
+'use strict';
+// ---------- helpers ----------
+function h(tag, attrs, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (k === 'class') e.className = v;
+    else if (k === 'html') e.innerHTML = v;
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else e.setAttribute(k, v);
+  }
+  for (const kid of kids) e.append(kid);
+  return e;
+}
+const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+const q = s => '<code>"' + esc(s) + '"</code>';
+const pad = (v, w) => String(v).padStart(w, ' ');
+function borderTable(p) {
+  const bl = new Array(p.length).fill(0);
+  let k = 0;
+  for (let i = 1; i < p.length; i++) {
+    while (k > 0 && p[k] !== p[i]) k = bl[k - 1];
+    if (p[k] === p[i]) k++;
+    bl[i] = k;
+  }
+  return bl;
+}
+function naiveCount(text, pat) {
+  let c = 0;
+  for (let s = 0; s + pat.length <= text.length; s++)
+    for (let j = 0; j < pat.length; j++) { c++; if (text[s + j] !== pat[j]) break; }
+  return c;
+}
+
+// ---------- cell rows ----------
+// rows: [{label, offset, cells:[{ch, cls}]}], cols = number of columns
+function renderRows(host, rows, cols) {
+  host.textContent = '';
+  const grid = h('div', { class: 'rows' });
+  grid.style.gridTemplateColumns = `max-content repeat(${cols}, var(--cell))`;
+  rows.forEach((row, r) => {
+    const lab = h('div', { class: 'lab', html: row.label || '' });
+    lab.style.gridRow = r + 1; lab.style.gridColumn = 1;
+    grid.append(lab);
+    row.cells.forEach((cell, i) => {
+      if (!cell) return;
+      const isSpace = cell.ch === ' ';
+      const c = h('div', { class: 'c ' + (cell.cls || '') + (isSpace ? ' space' : '') });
+      c.textContent = isSpace ? '␣' : cell.ch;
+      c.style.gridRow = r + 1; c.style.gridColumn = (row.offset || 0) + i + 2;
+      grid.append(c);
+    });
+  });
+  host.append(h('div', { class: 'rows-scroll' }, grid));
+}
+const idxRow = n => ({ label: 'index', cells: Array.from({ length: n }, (_, i) => ({ ch: String(i), cls: 'idx' })) });
+
+// ---------- stepper ----------
+function stepper(fig, { inputs, build, render, start }) {
+  const state = {};
+  const inputsBox = h('div', { class: 'inputs' });
+  const stage = h('div');
+  const msg = h('div', { class: 'msg' });
+  const readouts = h('div', { class: 'readouts' });
+  const range = h('input', { type: 'range', min: 0, max: 0, value: 0, 'aria-label': 'step' });
+  const stepRead = h('span', { class: 'readout' });
+  let frames = [], idx = 0, timer = null;
+  const show = () => {
+    const f = frames[idx];
+    range.value = idx;
+    stepRead.innerHTML = `step <b>${pad(idx, 3)}</b> / ${pad(frames.length - 1, 3)}`;
+    const out = render(f, state);
+    renderRows(stage, out.rows, out.cols);
+    msg.innerHTML = f.msg || '';
+    readouts.innerHTML = (out.readouts || []).map(([k, v]) => `<span class="readout">${k} <b>${v}</b></span>`).join('');
+    bBack.disabled = idx === 0; bStep.disabled = idx === frames.length - 1;
+  };
+  const go = i => { idx = Math.max(0, Math.min(frames.length - 1, i)); show(); };
+  const stop = () => { clearInterval(timer); timer = null; bPlay.textContent = 'Play'; };
+  const rebuild = (first) => {
+    stop();
+    frames = build(state);
+    range.max = frames.length - 1;
+    go(first && start ? Math.min(start, frames.length - 1) : 0);
+  };
+  for (const inp of inputs) {
+    state[inp.key] = inp.value;
+    const field = h('input', { type: 'text', value: inp.value, maxlength: inp.max || 40, spellcheck: 'false', class: inp.short ? 'short' : '' });
+    field.addEventListener('input', () => { if (field.value.length >= (inp.min ?? 1)) { state[inp.key] = field.value; rebuild(false); } });
+    inputsBox.append(h('label', {}, inp.label, field));
+  }
+  const bReset = h('button', { onclick: () => { stop(); go(0); } }, 'Reset');
+  const bBack = h('button', { onclick: () => { stop(); go(idx - 1); } }, '◀ Back');
+  const bStep = h('button', { onclick: () => { stop(); go(idx + 1); } }, 'Step ▶');
+  const bPlay = h('button', { onclick: () => {
+    if (timer) return stop();
+    if (idx === frames.length - 1) go(0);
+    bPlay.textContent = 'Pause';
+    timer = setInterval(() => { if (idx >= frames.length - 1) stop(); else go(idx + 1); }, 750);
+  } }, 'Play');
+  range.addEventListener('input', () => { stop(); go(+range.value); });
+  const cap = fig.querySelector('figcaption');
+  const body = h('div', {}, inputsBox, stage, h('div', { class: 'controls' }, bReset, bBack, bStep, bPlay, range, stepRead), readouts, msg);
+  fig.insertBefore(body, cap);
+  rebuild(true);
+}
+
+// ---------- naive search demo ----------
+function naiveFrames({ text, pattern }) {
+  const frames = [], found = [];
+  let cmp = 0;
+  const n = text.length, m = pattern.length;
+  if (m > n) return [{ shift: 0, j: -1, cmp: 0, found: [], msg: 'The pattern is longer than the text, so there is nothing to try.' }];
+  for (let s = 0; s + m <= n; s++) {
+    for (let j = 0; j < m; j++) {
+      cmp++;
+      const ok = text[s + j] === pattern[j];
+      let msg = `Start ${s}: compare <code>text[${s + j}]</code> = ${q(text[s + j])} with <code>pattern[${j}]</code> = ${q(pattern[j])}: ` +
+        (ok ? '<span class="g">equal</span>.' : `<span class="r">different</span>. Give up on start ${s}` + (s + m < n ? `, move the pattern one step right and begin again from <code>pattern[0]</code>.` : '.'));
+      if (ok && j === m - 1) { found.push(s); msg += ` Every pattern character matched: <span class="g">occurrence at ${s}</span>.`; }
+      frames.push({ shift: s, j, ok, cmp, found: [...found], msg });
+      if (!ok) break;
+    }
+  }
+  return frames;
+}
+function foundSet(found, m) { const set = new Set(); for (const s of found) for (let i = 0; i < m; i++) set.add(s + i); return set; }
+function renderNaive(f, { text, pattern }) {
+  const n = text.length, m = pattern.length, cols = Math.max(n, f.shift + m);
+  const fs = foundSet(f.found, m);
+  const tcells = [...text].map((ch, i) => {
+    let cls = 'txt';
+    if (f.j >= 0 && i >= f.shift && i < f.shift + f.j) cls += ' ok';
+    if (f.j >= 0 && i === f.shift + f.j) cls += (f.ok ? ' ok' : ' bad') + ' cmp';
+    if (fs.has(i)) cls += ' found';
+    return { ch, cls };
+  });
+  const pcells = [...pattern].map((ch, j) => {
+    let cls = 'pat';
+    if (j < f.j) cls += ' ok';
+    if (j === f.j) cls += (f.ok ? ' ok' : ' bad') + ' cmp';
+    return { ch, cls };
+  });
+  return {
+    cols,
+    rows: [idxRow(n), { label: '<span class="t">text</span>', cells: tcells }, { label: '<span class="p">pattern</span>', offset: f.shift, cells: pcells }],
+    readouts: [['start', pad(f.shift, 2)], ['comparisons so far', pad(f.cmp, 3)], ['occurrences', '[' + f.found.join(', ') + ']']],
+  };
+}
+
+// ---------- KMP search demo ----------
+function kmpFrames({ text, pattern }) {
+  const bl = borderTable(pattern), frames = [], found = [];
+  const n = text.length, m = pattern.length;
+  let k = 0, cmp = 0, free = 0;
+  for (let i = 0; i < n; i++) {
+    for (;;) {
+      cmp++;
+      const ok = pattern[k] === text[i];
+      let msg = `Compare <code>text[${i}]</code> = ${q(text[i])} with <code>pattern[${k}]</code> = ${q(pattern[k])}: `;
+      if (ok) {
+        msg += `<span class="g">equal</span>, so <code>matched_count</code> grows to ${k + 1}.`;
+        if (k + 1 === m) { found.push(i - m + 1); msg += ` That is the whole pattern: <span class="g">occurrence at ${i - m + 1}</span>.`; }
+        frames.push({ i, k, ok, cmp, free, found: [...found], msg, after: k + 1 });
+        k++;
+        break;
+      }
+      if (k === 0) {
+        msg += `<span class="r">different</span>, and nothing was matched, so there is nothing to reuse. Move on to the next text character.`;
+        frames.push({ i, k, ok, cmp, free, found: [...found], msg, after: 0 });
+        break;
+      }
+      msg += `<span class="r">different</span>, after ${k} matched character${k > 1 ? 's' : ''}.`;
+      frames.push({ i, k, ok, cmp, free, found: [...found], msg, after: k });
+      const nk = bl[k - 1];
+      frames.push({ i, k: nk, fallback: true, from: k, cmp, free: nk, found: [...found], after: nk,
+        msg: `The matched part was ${q(pattern.slice(0, k))}. Its longest border is ${nk ? q(pattern.slice(0, nk)) : 'empty'}, so <code>matched_count = border_length[${k - 1}] = ${nk}</code>: ` +
+          `the pattern slides right by ${k - nk}` + (nk ? ` and its first ${nk} character${nk > 1 ? 's are' : ' is'} <span class="b">already known to match</span>.` : '.') +
+          ` The text pointer stays on index ${i}.` });
+      k = nk; free = nk;
+    }
+    if (k === m) {
+      const nk = bl[m - 1];
+      frames.push({ i: i + 1, k: nk, fallback: true, from: m, cmp, free: nk, found: [...found], after: nk, afterFull: true,
+        msg: `After a full match, treat it like a mismatch one step past the end: fall back to the longest border of the whole pattern, <code>matched_count = border_length[${m - 1}] = ${nk}</code>` +
+          (nk ? `, keeping ${q(pattern.slice(0, nk))} for a possible overlapping occurrence.` : '.') });
+      k = nk; free = nk;
+    }
+  }
+  return frames;
+}
+function renderKmp(f, { text, pattern }, opts = {}) {
+  const n = text.length, m = pattern.length, bl = borderTable(pattern);
+  const shift = f.i - f.k, cols = Math.max(n, shift + m);
+  const fs = foundSet(f.found, m);
+  const comparing = !f.fallback;
+  const tcells = [...text].map((ch, i) => {
+    let cls = 'txt';
+    if (i >= shift && i < f.i) cls += i < shift + f.free ? ' free' : ' ok';
+    if (comparing && i === f.i) cls += (f.ok ? ' ok' : ' bad') + ' cmp';
+    if (fs.has(i)) cls += ' found';
+    return { ch, cls };
+  });
+  const pcells = [...pattern].map((ch, j) => {
+    let cls = 'pat';
+    if (j < f.k) cls += j < f.free ? ' free' : ' ok';
+    if (comparing && j === f.k) cls += (f.ok ? ' ok' : ' bad') + ' cmp';
+    return { ch, cls };
+  });
+  const ncells = bl.map((v, j) => ({ ch: String(v), cls: 'num' + (f.fallback && j === f.from - 1 ? ' used' : '') }));
+  const ptr = [];
+  if (f.i < cols) ptr[f.i] = { ch: '▲', cls: 'ptr' };
+  return {
+    cols,
+    rows: [idxRow(n), { label: '<span class="t">text</span>', cells: tcells }, { label: 'text_index', cells: ptr },
+      { label: '<span class="p">pattern</span>', offset: shift, cells: pcells }, { label: '<span class="b">border_length</span>', offset: shift, cells: ncells }],
+    readouts: [['text_index', pad(Math.min(f.i, n), 2)], ['matched_count', pad(f.after, 2)], ['comparisons', pad(f.cmp, 3)],
+      ['naive total', pad(naiveCount(text, pattern), 3)], ['occurrences', '[' + f.found.join(', ') + ']']],
+  };
+}
+
+// ---------- table builder demo ----------
+function buildFrames({ pattern }) {
+  const m = pattern.length, bl = new Array(m).fill(null), frames = [];
+  bl[0] = 0;
+  frames.push({ i: 1, k: 0, fallback: true, from: -1, free: 0, bl: [...bl],
+    msg: `<code>border_length[0] = 0</code>: a single character has no proper prefix except the empty one. Now slide a copy of the pattern under itself, one step to the right.` });
+  let k = 0, free = 0;
+  for (let i = 1; i < m; i++) {
+    for (;;) {
+      const ok = pattern[k] === pattern[i];
+      let msg = `Compare <code>pattern[${i}]</code> = ${q(pattern[i])} with <code>pattern[${k}]</code> = ${q(pattern[k])}: `;
+      if (ok) {
+        bl[i] = k + 1;
+        msg += `<span class="g">equal</span>. The border of length ${k} extends by one character, so <code>border_length[${i}] = ${k + 1}</code>` +
+          ` (${q(pattern.slice(0, k + 1))} is both the start and the end of ${q(pattern.slice(0, i + 1))}).`;
+        frames.push({ i, k, ok, free, bl: [...bl], wrote: i, msg });
+        k++;
+        break;
+      }
+      if (k === 0) {
+        bl[i] = 0;
+        msg += `<span class="r">different</span>, and the candidate border is already empty, so <code>border_length[${i}] = 0</code>.`;
+        frames.push({ i, k, ok, free, bl: [...bl], wrote: i, msg });
+        break;
+      }
+      msg += `<span class="r">different</span>. The border of length ${k} cannot be extended.`;
+      frames.push({ i, k, ok, free, bl: [...bl], msg });
+      const nk = bl[k - 1];
+      frames.push({ i, k: nk, fallback: true, from: k, free: nk, bl: [...bl],
+        msg: `Try the next longest border of ${q(pattern.slice(0, i))}. It is the longest border of ${q(pattern.slice(0, k))}, which the table already knows: ` +
+          `<code>candidate_length = border_length[${k - 1}] = ${nk}</code>.` });
+      k = nk; free = nk;
+    }
+  }
+  frames.push({ i: m, k, fallback: true, from: -1, free: k, bl: [...bl], done: true, msg: `The table is complete: <code>[${bl.join(', ')}]</code>.` });
+  return frames;
+}
+function renderBuild(f, { pattern }) {
+  const m = pattern.length, shift = f.i - f.k, cols = Math.max(m, shift + m);
+  const comparing = !f.fallback;
+  const top = [...pattern].map((ch, i) => {
+    let cls = 'pat';
+    if (i >= shift && i < f.i) cls += i < shift + f.free ? ' free' : ' ok';
+    if (comparing && i === f.i) cls += (f.ok ? ' ok' : ' bad') + ' cmp';
+    return { ch, cls };
+  });
+  const bottom = [...pattern].map((ch, j) => {
+    let cls = 'pat';
+    if (j < f.k) cls += j < f.free ? ' free' : ' ok';
+    if (comparing && j === f.k) cls += (f.ok ? ' ok' : ' bad') + ' cmp';
+    if (j > f.k || (f.fallback && j >= f.k)) cls += ' dim';
+    return { ch, cls };
+  });
+  const nums = f.bl.map((v, j) => ({ ch: v === null ? '·' : String(v), cls: 'num' + ((f.fallback && j === f.from - 1) || f.wrote === j ? ' used' : '') }));
+  const ptr = [];
+  if (f.i < m) ptr[f.i] = { ch: '▲', cls: 'ptr' };
+  return {
+    cols,
+    rows: [idxRow(m), { label: '<span class="p">pattern</span>', cells: top }, { label: '<span class="b">border_length</span>', cells: nums },
+      { label: 'end_index', cells: ptr }, { label: '<span class="p">copy of pattern</span>', offset: shift, cells: bottom }],
+    readouts: [['end_index', pad(Math.min(f.i, m - 1), 2)], ['candidate_length', pad(f.k, 2)]],
+  };
+}
+
+// ---------- border explorer ----------
+function borderExplorer(fig) {
+  const cap = fig.querySelector('figcaption');
+  const field = h('input', { type: 'text', value: 'abracadabra', maxlength: 24, spellcheck: 'false' });
+  const range = h('input', { type: 'range', min: 0, max: 10, value: 4, 'aria-label': 'length' });
+  const stage = h('div'), verdict = h('div', { class: 'msg' }), chips = h('div', { class: 'chips' }), read = h('span', { class: 'readout' });
+  verdict.style.minHeight = '3.2em';
+  const draw = () => {
+    const w = field.value, n = w.length, L = +range.value;
+    const pre = w.slice(0, L), suf = w.slice(n - L), same = pre === suf;
+    const cls = same ? ' free' : ' bad';
+    renderRows(stage, [idxRow(n),
+      { label: `first ${pad(L, 2)}`, cells: [...w].map((ch, i) => ({ ch, cls: 'pat' + (i < L ? cls : ' dim') })) },
+      { label: `last ${pad(L, 2)}`, cells: [...w].map((ch, i) => ({ ch, cls: 'pat' + (i >= n - L ? cls : ' dim') })) }], n);
+    read.innerHTML = `length <b>${pad(L, 2)}</b>`;
+    verdict.innerHTML = L === 0 ? `Length 0: the empty string is trivially both a prefix and a suffix. It always counts, and it is the fallback when nothing better exists.`
+      : `Prefix ${q(pre)} and suffix ${q(suf)} are ` + (same ? `<span class="b">equal</span>, so ${q(pre)} is a <span class="b">border</span> of ${q(w)}.` : `<span class="r">different</span>, so length ${L} is not a border.`);
+    chips.textContent = '';
+    chips.append('border lengths of the whole word:');
+    for (let len = 0; len < n; len++) {
+      const yes = w.slice(0, len) === w.slice(n - len);
+      chips.append(h('button', { class: 'chip' + (yes ? ' yes' : '') + (len === L ? ' cur' : ''), onclick: () => { range.value = len; draw(); } }, String(len)));
+    }
+  };
+  field.addEventListener('input', () => { if (!field.value) return; range.max = field.value.length - 1; range.value = Math.min(+range.value, field.value.length - 1); draw(); });
+  range.addEventListener('input', draw);
+  fig.insertBefore(h('div', {}, h('div', { class: 'inputs' }, h('label', {}, 'word', field)), stage,
+    h('div', { class: 'controls' }, range, read), verdict, chips), cap);
+  draw();
+}
+
+// ---------- overlap (shift) explorer ----------
+function shiftExplorer(fig) {
+  const cap = fig.querySelector('figcaption');
+  const field = h('input', { type: 'text', value: 'abracadabra', maxlength: 20, spellcheck: 'false' });
+  const range = h('input', { type: 'range', min: 1, max: 11, value: 7, 'aria-label': 'shift' });
+  const stage = h('div'), verdict = h('div', { class: 'msg' }), chips = h('div', { class: 'chips' }), read = h('span', { class: 'readout' });
+  verdict.style.minHeight = '4.6em';
+  const survives = (w, s) => w.slice(0, w.length - s) === w.slice(s);
+  const draw = () => {
+    const w = field.value, k = w.length, s = +range.value, ok = survives(w, s);
+    renderRows(stage, [
+      { label: '<span class="t">text we already read</span>', cells: [...w].map((ch, i) => ({ ch, cls: 'txt' + (i >= s ? (w[i] === w[i - s] ? ' ok' : ' bad') : '') })) },
+      { label: `<span class="p">pattern</span>, moved right by ${pad(s, 2)}`, offset: s, cells: [...w].map((ch, j) => ({ ch, cls: 'pat' + (j < k - s ? (w[j] === w[j + s] ? ' ok' : ' bad') : ' dim') })) }], k + s);
+    read.innerHTML = `shift <b>${pad(s, 2)}</b>   overlap <b>${pad(k - s, 2)}</b>`;
+    verdict.innerHTML = s === k ? `Shift ${s} moves the pattern completely past everything we read. Nothing overlaps, so nothing can contradict it. This always survives, and corresponds to the empty border.`
+      : ok ? `Every overlapping column agrees, so this shift <span class="g">survives</span>: an occurrence could start here. The overlap is ${q(w.slice(s))} on top and ${q(w.slice(0, k - s))} below, the same ${k - s} characters: a <span class="b">border of length ${k - s}</span>.`
+      : `Some column disagrees, so this shift is <span class="r">dead</span>: no occurrence can start here, whatever the rest of the text says. We know that without reading anything.`;
+    chips.textContent = '';
+    chips.append('surviving shifts:');
+    for (let x = 1; x <= k; x++) chips.append(h('button', { class: 'chip' + (survives(w, x) ? ' yes' : '') + (x === s ? ' cur' : ''), onclick: () => { range.value = x; draw(); } }, String(x)));
+  };
+  field.addEventListener('input', () => { if (!field.value) return; range.max = field.value.length; range.value = Math.min(+range.value, field.value.length); draw(); });
+  range.addEventListener('input', draw);
+  fig.insertBefore(h('div', {}, h('div', { class: 'inputs' }, h('label', {}, 'matched part', field)), stage,
+    h('div', { class: 'controls' }, range, read), verdict, chips), cap);
+  draw();
+}
+
+// ---------- SVG helpers ----------
+const NS = 'http://www.w3.org/2000/svg';
+function s(tag, attrs, text) {
+  const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs || {})) e.setAttribute(k, v);
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+const C = { ink: '#e8e4d8', muted: '#94a3b0', rule: '#2f3d4c', sky: '#5cc8e6', yellow: '#f4d35e', coral: '#ee8572', green: '#8fd694', lav: '#c3a6ff', panel: '#1f2a36' };
+function arrowDefs(svg, id, color) {
+  const defs = s('defs');
+  const mk = s('marker', { id, viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' });
+  mk.append(s('path', { d: 'M0,0 L10,5 L0,10 z', fill: color }));
+  defs.append(mk); svg.append(defs);
+}
+
+// ---------- state chain: failure links or full automaton ----------
+function drawChain(host, pattern, mode, alphabet) {
+  const m = pattern.length, bl = borderTable(pattern), gap = 92, x0 = 46, R = 19, yN = mode === 'dfa' ? 70 : 46;
+  const X = k => x0 + gap * k;
+  const arcs = [];   // {from, to, label}
+  const loops = [];
+  if (mode === 'fail') {
+    for (let k = 1; k <= m; k++) if (bl[k - 1] > 0) arcs.push({ from: k, to: bl[k - 1], label: '' });
+  } else {
+    const next = [];
+    for (let k = 0; k <= m; k++) {
+      next.push({});
+      for (const ch of alphabet) {
+        next[k][ch] = (k < m && pattern[k] === ch) ? k + 1 : (k === 0 ? 0 : next[bl[k - 1]][ch]);
+        const to = next[k][ch];
+        if (to === k + 1 && k < m && pattern[k] === ch) continue;
+        if (to === 0) continue;
+        if (to === k) loops.push({ at: k, label: ch }); else arcs.push({ from: k, to, label: ch });
+      }
+    }
+  }
+  const depth = a => 26 + 17 * (a.from - a.to);
+  const maxDepth = Math.max(40, ...arcs.map(depth));
+  const W = X(m) + 46, H = yN + R + maxDepth / 2 + 34;
+  const svg = s('svg', { viewBox: `0 0 ${W} ${H}`, width: W, role: 'img' });
+  const id = 'ar' + Math.random().toString(36).slice(2, 7);
+  arrowDefs(svg, id + 'y', C.yellow);
+  const d2 = s('defs'); const mk = s('marker', { id: id + 'l', viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto' });
+  mk.append(s('path', { d: 'M0,0 L10,5 L0,10 z', fill: C.lav })); d2.append(mk); svg.append(d2);
+  for (const a of arcs) {
+    const x1 = X(a.from) - 7, x2 = X(a.to) + 7, y = yN + R - 1, d = depth(a), mid = (x1 + x2) / 2;
+    svg.append(s('path', { d: `M${x1},${y} Q${mid},${y + d} ${x2},${y + 3}`, fill: 'none', stroke: C.lav, 'stroke-width': 1.6, 'marker-end': `url(#${id}l)` }));
+    if (a.label) {
+      svg.append(s('rect', { x: mid - 9, y: y + d / 2 - 11, width: 18, height: 20, fill: C.panel }));
+      svg.append(s('text', { x: mid, y: y + d / 2 + 4, 'text-anchor': 'middle', 'font-size': 15, fill: C.lav }, a.label));
+    }
+  }
+  for (const l of loops) {
+    const x = X(l.at), y = yN - R;
+    svg.append(s('path', { d: `M${x - 9},${y + 2} C${x - 26},${y - 36} ${x + 26},${y - 36} ${x + 9},${y + 1}`, fill: 'none', stroke: C.lav, 'stroke-width': 1.6, 'marker-end': `url(#${id}l)` }));
+    svg.append(s('text', { x, y: y - 31, 'text-anchor': 'middle', 'font-size': 15, fill: C.lav }, l.label));
+  }
+  for (let k = 0; k < m; k++) {
+    svg.append(s('line', { x1: X(k) + R, y1: yN, x2: X(k + 1) - R - 2, y2: yN, stroke: C.yellow, 'stroke-width': 1.6, 'marker-end': `url(#${id}y)` }));
+    svg.append(s('text', { x: (X(k) + X(k + 1)) / 2, y: yN - 8, 'text-anchor': 'middle', 'font-size': 16, fill: C.yellow }, pattern[k]));
+  }
+  for (let k = 0; k <= m; k++) {
+    svg.append(s('circle', { cx: X(k), cy: yN, r: R, fill: '#1a242f', stroke: k === m ? C.green : C.muted, 'stroke-width': k === m ? 2.4 : 1.4 }));
+    if (k === m && mode === 'dfa') svg.append(s('circle', { cx: X(k), cy: yN, r: R - 4.5, fill: 'none', stroke: C.green, 'stroke-width': 1.2 }));
+    svg.append(s('text', { x: X(k), y: yN + 5.5, 'text-anchor': 'middle', 'font-size': 16, fill: C.ink }, String(k)));
+  }
+  host.append(h('div', { class: 'svg-scroll' }, svg));
+}
+
+// ---------- sawtooth chart ----------
+function chartDemo(fig) {
+  const cap = fig.querySelector('figcaption');
+  const tf = h('input', { type: 'text', value: 'cocococoa cocoa cococo', maxlength: 44, spellcheck: 'false' });
+  const pf = h('input', { type: 'text', value: 'cocoa', maxlength: 12, spellcheck: 'false', class: 'short' });
+  const stage = h('div', { class: 'svg-scroll' }), readouts = h('div', { class: 'readouts' });
+  const draw = () => {
+    const text = tf.value, pat = pf.value;
+    if (!text || !pat) return;
+    const bl = borderTable(pat), n = text.length, m = pat.length;
+    const cw = 30, x0 = 46, top = 16, rowH = Math.min(30, 170 / m), H0 = top + rowH * m;
+    const W = x0 + cw * n + 20, H = H0 + 56;
+    const svg = s('svg', { viewBox: `0 0 ${W} ${H}`, width: W, role: 'img' });
+    const Y = v => H0 - v * rowH, X = i => x0 + cw * i;
+    for (let v = 0; v <= m; v++) {
+      svg.append(s('line', { x1: x0, y1: Y(v), x2: X(n), y2: Y(v), stroke: C.rule, 'stroke-width': 1 }));
+      svg.append(s('text', { x: x0 - 10, y: Y(v) + 5, 'text-anchor': 'end', 'font-size': 13, fill: C.muted }, String(v)));
+    }
+    let k = 0, rises = 0, falls = 0, cmp = 0, fallSteps = 0;
+    for (let i = 0; i < n; i++) {
+      svg.append(s('text', { x: X(i) + cw / 2, y: H0 + 22, 'text-anchor': 'middle', 'font-size': 15, fill: C.sky }, text[i] === ' ' ? '␣' : text[i]));
+      const start = k;
+      let low = k;
+      for (;;) {
+        cmp++;
+        low = k;
+        if (pat[k] === text[i]) { k++; break; }
+        if (k === 0) break;
+        k = bl[k - 1]; fallSteps++;
+      }
+      if (low < start) { svg.append(s('line', { x1: X(i), y1: Y(start), x2: X(i), y2: Y(low), stroke: C.lav, 'stroke-width': 2.6 })); falls += start - low; }
+      if (k > low) { svg.append(s('line', { x1: X(i), y1: Y(low), x2: X(i + 1), y2: Y(k), stroke: C.green, 'stroke-width': 2.6, 'stroke-linecap': 'round' })); rises++; }
+      else svg.append(s('line', { x1: X(i), y1: Y(low), x2: X(i + 1), y2: Y(k), stroke: C.muted, 'stroke-width': 2 }));
+      if (k === m) {
+        svg.append(s('circle', { cx: X(i + 1), cy: Y(m), r: 5, fill: C.green }));
+        const nk = bl[m - 1];
+        svg.append(s('line', { x1: X(i + 1), y1: Y(m), x2: X(i + 1), y2: Y(nk), stroke: C.lav, 'stroke-width': 2.6, 'stroke-dasharray': '4 3' }));
+        falls += m - nk; k = nk;
+      }
+    }
+    svg.append(s('text', { x: x0, y: H - 6, 'font-size': 13, fill: C.muted }, 'matched_count (vertical) after each text character (horizontal)'));
+    stage.textContent = ''; stage.append(svg);
+    const w = String(2 * n).length + 1;
+    readouts.innerHTML = [['n = len(text)', pad(n, w)], ['<span class="g">rises</span>', pad(rises, w)], ['<span class="b">total height fallen</span>', pad(falls, w)],
+      ['fallback steps', pad(fallSteps, w)], ['comparisons', pad(cmp, w)], ['2n', pad(2 * n, w)], ['naive', pad(naiveCount(text, pat), w + 1)]]
+      .map(([a, b]) => `<span class="readout">${a} <b>${b}</b></span>`).join('');
+  };
+  tf.addEventListener('input', draw); pf.addEventListener('input', draw);
+  fig.insertBefore(h('div', {}, h('div', { class: 'inputs' }, h('label', {}, 'text', tf), h('label', {}, 'pattern', pf)), stage, readouts), cap);
+  draw();
+}
+
+// ---------- static figures ----------
+function staticAlign(host, text, pattern, shift, upto) {
+  const n = text.length;
+  const mark = j => j < upto ? ' ok' : (j === upto ? ' bad cmp' : '');
+  renderRows(host, [idxRow(n),
+    { label: '<span class="t">text</span>', cells: [...text].map((ch, i) => ({ ch, cls: 'txt' + (i >= shift && i < shift + pattern.length ? mark(i - shift) : '') })) },
+    { label: '<span class="p">pattern</span>', offset: shift, cells: [...pattern].map((ch, j) => ({ ch, cls: 'pat' + mark(j) })) }], Math.max(n, shift + pattern.length));
+}
+function periodFigure(host, word) {
+  const bl = borderTable(word), n = word.length, p = n - bl[n - 1];
+  renderRows(host, [idxRow(n),
+    { label: 'word', cells: [...word].map((ch, i) => ({ ch, cls: 'pat' + (i >= p ? ' free' : '') })) },
+    { label: `same word, moved right by ${p}`, offset: p, cells: [...word].map((ch, i) => ({ ch, cls: 'pat' + (i < n - p ? ' free' : ' dim') })) }], n + p);
+}
+function chainRows(host, word) {
+  const rows = [];
+  let w = word;
+  for (;;) {
+    const bl = borderTable(w), n = w.length, b = n ? bl[n - 1] : 0;
+    rows.push({ label: rows.length === 0 ? 'the word' : 'its longest border', cells: [...w].map((ch, i) => ({ ch, cls: 'pat' + (i < b || i >= n - b ? ' free' : '') })) });
+    if (b === 0) break;
+    w = w.slice(0, b);
+  }
+  rows.forEach((r, i) => { if (i > 0) r.label = 'longest border of the row above'; });
+  renderRows(host, rows, word.length);
+}
+
+for (const fig of document.querySelectorAll('[data-demo]')) {
+  const kind = fig.dataset.demo;
+  if (kind === 'naive') stepper(fig, { inputs: [{ key: 'text', label: 'text', value: fig.dataset.text || 'cocococoa' }, { key: 'pattern', label: 'pattern', value: fig.dataset.pattern || 'cocoa', short: true, max: 14 }], build: naiveFrames, render: renderNaive, start: +(fig.dataset.start || 0) });
+  if (kind === 'kmp') stepper(fig, { inputs: [{ key: 'text', label: 'text', value: 'cocococoa' }, { key: 'pattern', label: 'pattern', value: 'cocoa', short: true, max: 14 }], build: kmpFrames, render: renderKmp, start: 5 });
+  if (kind === 'build') stepper(fig, { inputs: [{ key: 'pattern', label: 'pattern', value: 'aabaaab', max: 18, min: 2 }], build: buildFrames, render: renderBuild, start: 8 });
+  if (kind === 'borders') borderExplorer(fig);
+  if (kind === 'shift') shiftExplorer(fig);
+  if (kind === 'chart') chartDemo(fig);
+}
+for (const host of document.querySelectorAll('[data-fig]')) {
+  const d = host.dataset;
+  if (d.fig === 'align') staticAlign(host, d.text, d.pattern, +d.shift, +d.upto);
+  if (d.fig === 'period') periodFigure(host, d.word);
+  if (d.fig === 'chainrows') chainRows(host, d.word);
+  if (d.fig === 'chain') drawChain(host, d.pattern, d.mode, d.alphabet || '');
+}
+renderMathInElement(document.body, {
+  delimiters: [{ left: '\\[', right: '\\]', display: true }, { left: '\\(', right: '\\)', display: false }],
+  ignoredClasses: ['rows', 'msg', 'readout', 'inputs'],
+});
+</script>
+<script type="module">
+import { codeToHtml } from 'https://esm.sh/shiki@4.5.0';
+for (const code of document.querySelectorAll('pre > code[class^="language-"]')) {
+  const lang = code.className.replace('language-', '');
+  const pre = code.parentElement;
+  const tmp = document.createElement('div');
+  tmp.innerHTML = await codeToHtml(code.textContent.replace(/\n$/, ''), { lang, theme: 'nord' });
+  const fresh = tmp.firstElementChild;
+  if (pre.classList.contains('widecode')) fresh.classList.add('widecode');
+  pre.replaceWith(fresh);
+}
+document.documentElement.dataset.highlighted = 'yes';
+</script>
+</body>
+</html>
